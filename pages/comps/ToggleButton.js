@@ -48,6 +48,7 @@ const LightSaber = () => {
 const ToggleButton = () => {
   const theme = useTheme();
   const { darkMode, setDarkMode } = useContext(ColorModeContext);
+  // console.log(darkMode);
   return (
     <Box
       sx={{

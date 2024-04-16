@@ -18,7 +18,7 @@ const Skills = () => {
         { name: "KnockoutJs", value: 7 },
         { name: "TypeScript", value: 7 },
         { name: "Next.js", value: 7 },
-        { name: "React Native", value: 5 },
+        { name: "React Native", value: 6 },
       ],
     },
     {
@@ -42,9 +42,9 @@ const Skills = () => {
       skills: [
         { name: "Mysql", value: 7 },
         { name: "Postgresql", value: 8 },
-        { name: "MongoDb", value: 7 },
+        { name: "MongoDb", value: 6 },
         { name: "Firebase", value: 7 },
-        { name: "Redis", value: 7 },
+        { name: "Redis", value: 6 },
         { name: "SQLite", value: 7 },
         { name: "Knex ORM", value: 7 },
         { name: "Type ORM", value: 7 },
@@ -65,7 +65,7 @@ const Skills = () => {
         { name: "Git and Version Control", value: 9 },
         { name: "Jest Testing Framework", value: 8 },
         { name: "Sinon", value: 7 },
-        { name: "Testing Library", value: 8 },
+        { name: "React Testing Library", value: 8 },
       ],
     },
   ];
