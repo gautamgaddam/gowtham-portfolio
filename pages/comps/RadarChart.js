@@ -65,7 +65,7 @@ const SkillRadarChart = ({ skills }) => {
     },
   };
 
-  console.log(data);
+  // console.log(data);
   return (
     <div>
       <Radar data={data} options={options} />
