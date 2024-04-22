@@ -36,9 +36,9 @@ export default function MyApp(props) {
   const _setDarkMode = (newmode) => {
     // console.log(`set localStore ${newmode}`);
     localStorage.setItem("mode", newmode);
-    setDarkMode(!newmode);
+    setDarkMode(newmode);
   };
-
+  // console.log("darkMode", darkMode);
   return (
     <CacheProvider value={emotionCache}>
       <Head>
@@ -49,7 +49,8 @@ export default function MyApp(props) {
       <ColorModeContext.Provider
         value={{ darkMode, setDarkMode: _setDarkMode }}
       >
-        <ThemeProvider theme={darkMode ? darkTheme : theme}>
+        {/* darkMode ? darkTheme : theme */}
+        <ThemeProvider theme={darkTheme}>
           {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
           <CssBaseline />
           <Layout>

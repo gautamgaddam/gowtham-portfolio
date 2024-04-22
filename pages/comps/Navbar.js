@@ -23,15 +23,15 @@ const Navbar = () => {
           <p>gowtham09234@gmail.com</p>
         </Box> */}
         <Box className="header">
-          <Link href="/#about"> About</Link>
+          <Link href="/"> About</Link>
           <Link href="/#skills">Guns</Link>
           <Link href="/battles">Battles</Link>
           <Link href="/#contact">Contact</Link>
         </Box>
 
-        <Box className="toggleButton">
+        {/* <Box className="toggleButton">
           <ToggleButton />
-        </Box>
+        </Box> */}
       </Container>
     </AppBar>
   );

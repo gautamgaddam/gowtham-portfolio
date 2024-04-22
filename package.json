@@ -22,5 +22,9 @@
     "react-chartjs-2": "^5.2.0",
     "react-d3-radar": "^1.0.0-rc6",
     "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.12.7",
+    "typescript": "5.4.5"
   }
 }
