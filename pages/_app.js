@@ -8,7 +8,7 @@ import theme from "../styles/theme";
 import createEmotionCache from "../styles/createEmotionCache";
 import Layout from "./comps/Layout";
 import { useState, useEffect } from "react";
-import { useMediaQuery } from "@mui/material";
+import { CircularProgress, useMediaQuery } from "@mui/material";
 import darkTheme from "../styles/darkTheme";
 import ColorModeContext from "../styles/ColorModeContext";
 import "../styles/globals.css";
@@ -52,6 +52,7 @@ export default function MyApp(props) {
         {/* darkMode ? darkTheme : theme */}
         <ThemeProvider theme={darkTheme}>
           {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+
           <CssBaseline />
           <Layout>
             <Component {...pageProps} />

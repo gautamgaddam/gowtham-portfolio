@@ -80,35 +80,37 @@ const ContactForm = () => {
         I would love to hear from you
       </Typography>
       <Box component="form" noValidate>
-        <TextField
-          required
-          fullWidth
-          margin="normal"
-          variant="filled"
-          placeholder="Name"
-          className={`${styles.formInput} ${
-            errors.name ? styles.inputError : ""
-          }`}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          error={!!errors.name}
-          helperText={errors.name}
-        />
-        <TextField
-          required
-          fullWidth
-          margin="normal"
-          variant="filled"
-          placeholder="Email address"
-          type="email"
-          className={`${styles.formInput} ${
-            errors.email ? styles.inputError : ""
-          }`}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={!!errors.email}
-          helperText={errors.email}
-        />
+        <Box className={styles.formNameAndEmail}>
+          <TextField
+            required
+            fullWidth
+            margin="normal"
+            variant="filled"
+            placeholder="Name"
+            className={`${styles.formInput} ${
+              errors.name ? styles.inputError : ""
+            }`}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={!!errors.name}
+            helperText={errors.name}
+          />
+          <TextField
+            required
+            fullWidth
+            margin="normal"
+            variant="filled"
+            placeholder="Email address"
+            type="email"
+            className={`${styles.formInput} ${
+              errors.email ? styles.inputError : ""
+            }`}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={!!errors.email}
+            helperText={errors.email}
+          />
+        </Box>
         <TextField
           required
           fullWidth
