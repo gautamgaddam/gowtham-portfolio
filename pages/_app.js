@@ -38,7 +38,7 @@ export default function MyApp(props) {
     localStorage.setItem("mode", newmode);
     setDarkMode(newmode);
   };
-  console.log("darkMode", darkMode);
+  // console.log("darkMode", darkMode);
   return (
     <CacheProvider value={emotionCache}>
       <Head>
@@ -50,7 +50,7 @@ export default function MyApp(props) {
         value={{ darkMode, setDarkMode: _setDarkMode }}
       >
         {/* darkMode ? darkTheme : theme */}
-        <ThemeProvider theme={darkMode ? darkTheme : theme}>
+        <ThemeProvider theme={darkTheme}>
           {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
 
           <CssBaseline />
