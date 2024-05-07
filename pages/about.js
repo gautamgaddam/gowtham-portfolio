@@ -1,5 +1,6 @@
 import { Box } from "@mui/material";
 import styles from "../styles/about.module.css";
+import RotatingVinyl from "./comps/VinylGrahamPhone";
 
 const About = () => {
   return (
@@ -24,7 +25,8 @@ const About = () => {
             web applications with cutting edge technologies. Feel free to say
             hi.
           </p>
-          <p> </p>
+         
+            <RotatingVinyl />
         </Box>
         <Box className={styles.aboutContentPicture}></Box>
       </Box>
