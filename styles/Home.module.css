@@ -132,3 +132,47 @@
     flex-direction: column;
   }
 }
+
+.rotatingDisc {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  perspective: 1000px; /* Adds depth to the rotation */
+}
+.disc {
+  width: 150px;
+  height: 150px;
+  background-color: black;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg); /* Initial rotation angle */
+  animation: rotateAnimation 10s linear infinite; /* Define the rotation animation */
+}
+
+.goldLine {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 50px;
+  background-color: gold;
+  transform-origin: bottom;
+}
+
+.goldLine:nth-child(1) {
+  transform: translate(-50%, -50%) rotate(45deg); /* Adjust the angle of the lines */
+}
+
+.goldLine:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(135deg); /* Adjust the angle of the lines */
+}
+
+.goldLine:nth-child(3) {
+  transform: translate(-50%, -50%) rotate(225deg); /* Adjust the angle of the lines */
+}
+
+.goldLine:nth-child(4) {
+  transform: translate(-50%, -50%) rotate(315deg); /* Adjust the angle of the lines */
+}
