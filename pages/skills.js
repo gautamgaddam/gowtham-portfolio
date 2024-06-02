@@ -75,7 +75,7 @@ const Skills = () => {
     <Box className={styles.skills} id="skills">
       <Box className={styles.skillsContent}>
         <Box className={styles.skillsContentText}>
-          <h1 className={styles.skillsTitle}>Guns()</h1>
+          <h1 className={styles.skillsTitle}>Inventory()</h1>
           {/* <Stack */}
           {/* // direction="row"
             className={styles.skillsStack}
