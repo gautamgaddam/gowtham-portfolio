@@ -2,6 +2,7 @@ import { Box, AppBar, Container } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ToggleButton from "./ToggleButton";
 import Link from "next/link";
+// import Resume from "../resume/resume.pdf";
 const Navbar = () => {
   const theme = useTheme();
   return (
@@ -24,9 +25,16 @@ const Navbar = () => {
         </Box> */}
         <Box className="header">
           <Link href="/"> About</Link>
-          <Link href="/#skills">Guns</Link>
+          <Link href="/#skills">Inventory</Link>
           <Link href="/battles">Battles</Link>
           <Link href="/#contact">Contact</Link>
+          <Link
+            href="../resume/resume.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Resume
+          </Link>
         </Box>
 
         {/* <Box className="toggleButton">
