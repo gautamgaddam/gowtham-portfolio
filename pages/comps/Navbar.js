@@ -29,7 +29,7 @@ const Navbar = () => {
           <Link href="/battles">Battles</Link>
           <Link href="/#contact">Contact</Link>
           <Link
-            href="../resume/resume.pdf"
+            href="../resume/resume-06-2024.pdf"
             target="_blank"
             rel="noopener noreferrer"
           >
