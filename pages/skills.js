@@ -2,6 +2,7 @@ import React from "react";
 import { Box } from "@mui/material";
 import styles from "../styles/about.module.css";
 import SkillRadarChart from "./comps/RadarChart";
+// import Tetris from "./comps/Tetris";
 
 const Skills = () => {
   const expandedSkills = [
@@ -110,6 +111,7 @@ const Skills = () => {
 
           {/* </Stack> */}
           <SkillRadarChart skills={expandedSkills} />
+          {/* <Tetris /> */}
         </Box>
       </Box>
     </Box>
