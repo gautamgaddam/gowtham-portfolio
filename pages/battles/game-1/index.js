@@ -1,57 +1,35 @@
 import styles from "../../../styles/battles.module.css";
 import { useEffect, useRef } from "react";
 import gsap, { Power3 } from "gsap";
-import { useGSAP } from "@gsap/react";
 import { Typography } from "@mui/material";
-const Game1 = () => {
-  let circlePink = useRef(null);
-  let circleRed = useRef(null);
-  let circleBlue = useRef(null);
-  let circleOrange = useRef(null);
-  useEffect(() => {
-    // console.log(circleBlue, circlePink, circleRed);
-    // gsap.to(circlePink.current, { opacity: 0.6 });
-    // gsap.to(circleRed.current, { opacity: 0.6 });
-    // gsap.to(circleBlue.current, { opacity: 0.6 });
-    gsap.from(circlePink.current, {
-      duration: 1,
-      opacity: 1,
-      y: 40,
-      ease: Power3.easeOut,
-    });
 
-    gsap.from(circleRed.current, {
-      duration: 1,
-      opacity: 1,
-      y: 40,
-      ease: Power3.easeOut,
-      delay: 0.1,
-    });
-    gsap.from(circleBlue.current, {
-      duration: 1,
-      opacity: 1,
-      y: 40,
-      ease: Power3.easeOut,
-      delay: 0.3,
-    });
-    gsap.from(circleOrange.current, {
-      duration: 1,
-      opacity: 1,
-      y: 40,
-      ease: Power3.easeOut,
-      delay: 0.5,
+const Game1 = () => {
+  const circlesRef = useRef([]);
+
+  const colors = [
+    "pink",
+    "red",
+    "blue",
+    "orange",
+    "green",
+    "yellow",
+    "purple",
+    "teal",
+  ];
+
+  useEffect(() => {
+    circlesRef.current.forEach((circle, index) => {
+      console.log({ x: index, ...(index > 0 && { delay: index / 10 + 0.01 }) });
+      gsap.from(circle, {
+        duration: 1,
+        opacity: 1,
+        y: 40,
+        ease: Power3.easeOut,
+        ...(index > 0 && { delay: index / 10 + 0.01 }), // delay based on index
+      });
     });
   }, []);
 
-  // useGSAP(
-  //   () => {
-  //     // use selectors...
-
-  //     // or refs...
-  //     gsap.to(circle.current, { rotation: "-=360" });
-  //   },
-  //   { scope: circlePink }
-  // );
   return (
     <>
       <Typography
@@ -62,16 +40,28 @@ const Game1 = () => {
       >
         Projects()
       </Typography>
+
+      <Typography
+        variant="h3"
+        align="left"
+        gutterBottom
+        className={styles.formTitle}
+      >
+        Corporate()
+      </Typography>
       <div className={styles.circleContainer}>
-        <div ref={circlePink} className={styles.circle}></div>
-        <div ref={circleRed} className={styles.circle + " " + "red"}></div>
-        <div ref={circleBlue} className={styles.circle + " " + "blue"}></div>
-        <div
-          ref={circleOrange}
-          className={styles.circle + " " + "orange"}
-        ></div>
+        {colors.map((color, index) => (
+          <div
+            key={index}
+            ref={(el) => {
+              circlesRef.current[index] = el;
+            }}
+            className={`${styles.circle} ${styles[color]}`}
+          />
+        ))}
       </div>
     </>
   );
 };
+
 export default Game1;

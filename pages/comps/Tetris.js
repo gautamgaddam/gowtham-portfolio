@@ -64,9 +64,9 @@ const Tetris = () => {
       let score = 0; // Player's score
       let isGameOver = false; // Flag indicating if the game is over
       let isPaused = true; // Flag indicating if the game is paused
-      let dropInterval = 1000; // Time interval for dropping pieces (in milliseconds)
-      let dropTimer = null; // Timer for handling piece dropping
-
+      let dropInterval = 2500; // Time interval for dropping pieces (in milliseconds)
+      let lastDropTime = Date.now(); // Track the last drop time
+      let dropTimer = null;
       // Game control elements
       const startButton = document.getElementById("start-button");
       const pauseButton = document.getElementById("pause-button");
@@ -253,6 +253,9 @@ const Tetris = () => {
               rotatePiece();
               break;
           }
+          // Redraw after movement
+          drawGrid();
+          drawPiece(currentPiece);
         }
       }
 
@@ -266,18 +269,18 @@ const Tetris = () => {
         scoreDisplay.textContent = `Score: ${score}`;
         startButton.disabled = true;
         pauseButton.disabled = false;
-        dropTimer = setInterval(gameLoop, dropInterval);
+        lastDropTime = Date.now(); // Initialize last drop time
+        dropTimer = setInterval(gameLoop, 1000 / 60); // 60 FPS game loop
       }
 
       function togglePause() {
         // Pauses or resumes the game
         isPaused = !isPaused;
-        startButton.disabled = !isPaused;
-        pauseButton.disabled = isPaused;
+        pauseButton.textContent = isPaused ? "Resume" : "Pause";
         if (isPaused) {
           clearInterval(dropTimer);
         } else {
-          dropTimer = setInterval(gameLoop, dropInterval);
+          dropTimer = setInterval(gameLoop, 1000 / 60); // 60 FPS game loop
         }
       }
 
@@ -287,15 +290,23 @@ const Tetris = () => {
         isGameOver = true;
         startButton.disabled = false;
         pauseButton.disabled = true;
-        alert(`Game Over! Your score: ${score}`);
+        console.log(`Game Over! Your score: ${score}`);
       }
 
       function gameLoop() {
         // The main game loop that handles rendering and updating the game state
+        const currentTime = Date.now();
+        const deltaTime = currentTime - lastDropTime;
+
         if (!isPaused && !isGameOver) {
+          if (deltaTime > dropInterval) {
+            dropPiece();
+            lastDropTime = currentTime; // Reset drop time
+          }
+
           drawGrid();
           drawPiece(currentPiece);
-          drawPiece(nextPiece);
+
           if (
             !isValidPosition(currentPiece, currentPiece.x, currentPiece.y + 1)
           ) {
@@ -308,8 +319,6 @@ const Tetris = () => {
             ) {
               gameOver();
             }
-          } else {
-            dropPiece();
           }
         }
         requestAnimationFrame(gameLoop);
@@ -321,12 +330,12 @@ const Tetris = () => {
   }, []);
 
   return (
-    <div>
+    <div className={styles.tetrisBody}>
       <div id="game-container" className={styles.gameContainer}>
         <canvas
           id="game-canvas"
           className={styles.gameCanvas}
-          width="240"
+          width="640"
           height="400"
           ref={canvasRef}
         ></canvas>
