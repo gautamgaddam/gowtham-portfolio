@@ -14,15 +14,51 @@
 
 .circle {
   width: 100%;
-  height: 500px;
+  height: 200px;
 
   place-self: center;
   border-radius: 10px;
+  background-color: #333;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  background-color: #333;
+  /* transition: all 0.3s ease-in-out; */
+}
+.circle:hover {
+  /* transform: scale(1.1) !important; */
+}
+/* .circle_red {
+  background-image: url("../pages/images/logos/airbus.jpg");
+} */
+.red {
+  background-image: url("../pages/images/logos/airbus.jpeg");
+}
+.pink {
+  background-image: url("../pages/images/logos/soprasteria.png");
+}
+.yellow {
+  background-image: url("../pages/images/logos/interviewbuddy.png");
+}
+.orange {
+  background-image: url("../pages/images/logos/ebay.webp");
+}
+.blue {
+  background-image: url("../pages/images/logos/verizon.png");
+}
+.teal {
+  background-image: url("../pages/images/logos/walmart_light.jpeg");
+}
+.purple {
+  background-image: url("../pages/images/logos/logo.png");
+}
+.green {
+  background-image: url("../pages//images/logos/falconavl.png");
 }
 
 .circleContainer {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin: 2rem 15px;
   grid-gap: 3rem;
 }
