@@ -22,8 +22,16 @@
   background-size: 100%;
   background-position: center;
   background-color: #333;
+  /* transition: scale 0.3s ease; */
+  /* transition-duration: 0.3s;
+  transition-timing-function: ease-in;
+  cursor: pointer; */
+  /* transition: all 0.3s ease-in; */
 }
-
+.circle:hover {
+  transform: scale(1.2) !important;
+  transition: all 0.1s ease-in;
+}
 .red {
   background-image: url("../pages/images/logos/airbus.jpeg");
 }
@@ -65,4 +73,18 @@
   font-size: 1.5rem !important;
   font-weight: bold !important;
   margin: 2rem 15px !important;
+}
+
+.project1 {
+  background-image: url("../pages/images/logos/tetris.gif");
+}
+
+.project2 {
+  background-image: url("../pages/images/logos/tradesense.webp");
+}
+.project3 {
+  background-image: url("../pages/images/logos/gitbot.webp");
+}
+.project4 {
+  background-image: url("../pages/images/logos/pricefinder.webp");
 }

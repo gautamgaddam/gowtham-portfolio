@@ -1,27 +1,37 @@
 import styles from "../../../styles/battles.module.css";
 import { useEffect, useRef } from "react";
 import gsap, { Power3 } from "gsap";
-import { Typography } from "@mui/material";
-
+import { Tooltip, Typography } from "@mui/material";
+import { useRouter } from "next/router";
 const Game1 = () => {
+  const router = useRouter();
   const circlesRef = useRef([]);
   const projectsRef = useRef([]);
   const colors = [
-    "pink",
-    "red",
-    "blue",
-    "orange",
-    "green",
-    "yellow",
-    "purple",
-    "teal",
+    { name: "pink", title: "Sopra Steria" },
+    { name: "red", title: "Airbus" },
+    { name: "blue", title: "Verizon" },
+    { name: "orange", title: "Ebay" },
+    { name: "green", title: "FalconAvl" },
+    { name: "yellow", title: "InterviewBuddy" },
+    { name: "purple", title: "Ulta Beauty" },
+    { name: "teal", title: "Walmart" },
   ];
-  const projects = ["project1", "project2", "project3", "project4"];
+
+  const projects = [
+    { name: "project1", title: "Tetris", link: "Tetris" },
+    {
+      name: "project2",
+      title: "TrandeSense",
+      link: "https://tradesense.streamlit.app/",
+    },
+    { name: "project3", title: "Gita Bot", link: "Gita Bot" },
+    { name: "project4", title: "Price Finder", link: "Price Finder" },
+  ];
   useEffect(() => {
     circlesRef.current.forEach((circle, index) => {
-      console.log({ x: index, ...(index > 0 && { delay: index / 10 + 0.01 }) });
       gsap.from(circle, {
-        duration: 1,
+        duration: 0.5,
         opacity: 1,
         y: 40,
         ease: Power3.easeOut,
@@ -29,9 +39,8 @@ const Game1 = () => {
       });
     });
     projectsRef.current.forEach((project, index) => {
-      console.log({ x: index, ...(index > 0 && { delay: index / 10 + 0.01 }) });
       gsap.from(project, {
-        duration: 1,
+        duration: 0.5,
         opacity: 1,
         y: 40,
         ease: Power3.easeOut,
@@ -39,7 +48,9 @@ const Game1 = () => {
       });
     });
   }, []);
-
+  // const openProject = (project) => {
+  //   router.push("tetris");
+  // };
   return (
     <>
       <Typography
@@ -60,13 +71,16 @@ const Game1 = () => {
       </Typography>
       <div className={styles.circleContainer}>
         {projects.map((color, index) => (
-          <div
-            key={index}
-            ref={(el) => {
-              projectsRef.current[index] = el;
-            }}
-            className={`${styles.circle} ${styles[color]}`}
-          />
+          <Tooltip title={color.title}>
+            <div
+              key={index}
+              ref={(el) => {
+                projectsRef.current[index] = el;
+              }}
+              className={`${styles.circle} ${styles[color.name]}`}
+              // onClick={() => openProject(color)}
+            />
+          </Tooltip>
         ))}
       </div>
       <Typography
@@ -79,13 +93,15 @@ const Game1 = () => {
       </Typography>
       <div className={styles.circleContainer}>
         {colors.map((color, index) => (
-          <div
-            key={index}
-            ref={(el) => {
-              circlesRef.current[index] = el;
-            }}
-            className={`${styles.circle} ${styles[color]}`}
-          />
+          <Tooltip title={color.title}>
+            <div
+              key={index}
+              ref={(el) => {
+                circlesRef.current[index] = el;
+              }}
+              className={`${styles.circle} ${styles[color.name]}`}
+            />
+          </Tooltip>
         ))}
       </div>
     </>
