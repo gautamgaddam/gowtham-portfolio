@@ -13,7 +13,7 @@ import {
 } from "@mui/icons-material";
 import RocketIcon from "@mui/icons-material/Rocket";
 import Link from "next/link";
-
+import Tetris from "../comps/Tetris";
 const Footer = () => {
   const year = new Date().getFullYear();
   const allLinks = [
@@ -32,6 +32,7 @@ const Footer = () => {
       id: 1,
     },
     { route: "/battles", name: "Battles", icon: <SportsScore />, id: 2 },
+    { route: "/tetris", name: "Battles", icon: < HomeOutlined/>, id: 3 },
   ];
   const [value, setValue] = React.useState(0);
 
@@ -55,10 +56,11 @@ const Footer = () => {
       <footer>
         <Box display="flex" justifyContent={"space-between"} width="100%">
           {allLinks.map((link) => {
-            if (link.id === 1) {
+            if (link.id === 1 || link.id === 3) {
               return <React.Fragment key={link.id}></React.Fragment>;
               // return <canvas id="race_icon" key={link.id}></canvas>;
             }
+
             return (
               <Link
                 href={link.route}
