@@ -22,7 +22,7 @@ const Game1 = () => {
     { name: "project1", title: "Tetris", link: "Tetris" },
     {
       name: "project2",
-      title: "TrandeSense",
+      title: "TradeSense",
       link: "https://tradesense.streamlit.app/",
     },
     { name: "project3", title: "Gita Bot", link: "Gita Bot" },
