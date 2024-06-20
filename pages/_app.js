@@ -12,6 +12,7 @@ import { CircularProgress, LinearProgress, useMediaQuery } from "@mui/material";
 import darkTheme from "../styles/darkTheme";
 import ColorModeContext from "../styles/ColorModeContext";
 import "../styles/globals.css";
+import FavIcon from "../public/favicon_io/favicon-32x32.png";
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
@@ -48,6 +49,7 @@ export default function MyApp(props) {
     <CacheProvider value={emotionCache}>
       <Head>
         <title>Gowtham Gaddam</title>
+        <link rel="icon" href="/favicon_io/favicon-32x32.png"></link>
         <meta name="viewport" content="initial-scale=1, width=device-width" />
       </Head>
       {/* <ColorModeContext.Provider value={colorMode}> */}
