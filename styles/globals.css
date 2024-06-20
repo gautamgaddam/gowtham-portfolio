@@ -20,9 +20,9 @@ a {
   position: relative;
 }
 
-nav.nav {
+nav {
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: none !important;
   background-color: #121212 !important;
   background-image: none !important;
 }
@@ -110,4 +110,18 @@ footer {
   position: absolute;
   top: 10px;
   right: 10px;
+}
+
+.mobileHeader {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mobileHeaderDrawer {
+  background-image: none !important;
+}
+.buttonDrawer {
+  position: relative;
+  left: 0.65rem;
 }

@@ -1,45 +1,109 @@
-import { Box, AppBar, Container } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import ToggleButton from "./ToggleButton";
+import {
+  AppBar,
+  Box,
+  Container,
+  IconButton,
+  Drawer,
+  Toolbar,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import Link from "next/link";
-// import Resume from "../resume/resume.pdf";
+import { useState } from "react";
+
 const Navbar = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const drawer = (
+    <Box
+      onClick={handleDrawerToggle}
+      sx={{ textAlign: "center" }}
+      className="mobileHeader"
+    >
+      <Link href="/" passHref>
+        <Box sx={{ my: 2 }}>About</Box>
+      </Link>
+      <Link href="/#skills" passHref>
+        <Box sx={{ my: 2 }}>Inventory</Box>
+      </Link>
+      <Link href="/battles" passHref>
+        <Box sx={{ my: 2 }}>Battles</Box>
+      </Link>
+      <Link href="/#contact" passHref>
+        <Box sx={{ my: 2 }}>Contact</Box>
+      </Link>
+      <Link href="../resume/17_06_2024.pdf" passHref>
+        <Box sx={{ my: 2 }} target="_blank" rel="noopener noreferrer">
+          Resume
+        </Box>
+      </Link>
+    </Box>
+  );
+
   return (
     <AppBar
-      component={"nav"}
-      className="nav"
+      component="nav"
       position="sticky"
       sx={{
-        backgroundColor: theme.palette.mode === "dark" ? "#000" : "#66bb6a",
+        backgroundColor: theme.palette.mode === "dark" ? "#121212" : "#66bb6a",
       }}
     >
       <Container>
-        {/* <Box className="header">
-          <h1 className="logo_and_name">
-            <Logo />
-            <TerminalTwoToneIcon fontSize="10px" /> Gowtham Gaddam
-          </h1>
-          <p>Call Me (+91) 7989692571</p>
-          <p>gowtham09234@gmail.com</p>
-        </Box> */}
-        <Box className="header">
-          <Link href="/"> About</Link>
-          <Link href="/#skills">Inventory</Link>
-          <Link href="/battles">Battles</Link>
-          <Link href="/#contact">Contact</Link>
-          <Link
-            href="../resume/17_06_2024.pdf"
-            target="_blank"
-            rel="noopener noreferrer"
+        {/* <Toolbar disableGutters> */}
+        {isMobile ? (
+          <>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              className="buttonDrawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: "block" } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Drawer
+              className="mobileHeaderDrawer"
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{
+                keepMounted: true, // Better open performance on mobile.
+              }}
+            >
+              {drawer}
+            </Drawer>
+          </>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+            className="header"
           >
-            Resume
-          </Link>
-        </Box>
-
-        {/* <Box className="toggleButton">
-          <ToggleButton />
-        </Box> */}
+            <Link href="/">About</Link>
+            <Link href="/#skills">Inventory</Link>
+            <Link href="/battles">Battles</Link>
+            <Link href="/#contact">Contact</Link>
+            <Link
+              href="../resume/17_06_2024.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Resume
+            </Link>
+          </Box>
+        )}
+        {/* </Toolbar> */}
       </Container>
     </AppBar>
   );
