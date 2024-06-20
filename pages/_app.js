@@ -8,7 +8,7 @@ import theme from "../styles/theme";
 import createEmotionCache from "../styles/createEmotionCache";
 import Layout from "./comps/Layout";
 import { useState, useEffect } from "react";
-import { CircularProgress, useMediaQuery } from "@mui/material";
+import { CircularProgress, LinearProgress, useMediaQuery } from "@mui/material";
 import darkTheme from "../styles/darkTheme";
 import ColorModeContext from "../styles/ColorModeContext";
 import "../styles/globals.css";
@@ -21,7 +21,12 @@ export default function MyApp(props) {
   // Set dark mode based on media query
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [darkMode, setDarkMode] = useState(prefersDarkMode);
-
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
   useEffect(() => {
     const mode = localStorage.getItem("mode") === "true";
     // set mode
@@ -46,19 +51,23 @@ export default function MyApp(props) {
         <meta name="viewport" content="initial-scale=1, width=device-width" />
       </Head>
       {/* <ColorModeContext.Provider value={colorMode}> */}
-      <ColorModeContext.Provider
-        value={{ darkMode, setDarkMode: _setDarkMode }}
-      >
-        {/* darkMode ? darkTheme : theme */}
-        <ThemeProvider theme={darkTheme}>
-          {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+      {loading ? (
+        <LinearProgress color="inherit" />
+      ) : (
+        <ColorModeContext.Provider
+          value={{ darkMode, setDarkMode: _setDarkMode }}
+        >
+          {/* darkMode ? darkTheme : theme */}
+          <ThemeProvider theme={darkTheme}>
+            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
 
-          <CssBaseline />
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
-        </ThemeProvider>
-      </ColorModeContext.Provider>
+            <CssBaseline />
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </ThemeProvider>
+        </ColorModeContext.Provider>
+      )}
     </CacheProvider>
   );
 }
