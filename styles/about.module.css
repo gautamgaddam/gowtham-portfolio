@@ -51,6 +51,54 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
 }
-.skillsItem {
+.skillItem {
   text-transform: uppercase;
+  margin-bottom: 10px;
+  list-style: none; /* Remove bullet points */
+  transition: all 0.2s ease-in-out;
+}
+.skillsTitle {
+  margin-bottom: 20px;
+}
+
+.progressBar {
+  height: 10px; /* Adjust height of the progress bar */
+  border-radius: 5px; /* Make the corners rounded */
+}
+.blue {
+  background-color: rgb(0, 225, 255) !important;
+}
+.green {
+  background-color: #00e676;
+  .MuiLinearProgress-bar1Buffer {
+    background-color: green;
+  }
+}
+.orange {
+  background-color: orange;
+  .MuiLinearProgress-bar1Buffer {
+    background-color: orange;
+  }
+}
+.skillItem:hover {
+  transform: scale(1.1);
+  transition: all 0.2s ease-in;
+}
+.skillName {
+  font-weight: 10px;
+  padding-left: 10px;
+}
+@media only screen and (max-width: 768px) {
+  .aboutContent {
+    flex-direction: column-reverse;
+  }
+  .aboutContentText,
+  .aboutContentPicture {
+    width: 100%;
+  }
+  .aboutContentText {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

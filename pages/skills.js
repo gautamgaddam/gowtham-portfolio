@@ -1,10 +1,21 @@
-import React from "react";
-import { Box } from "@mui/material";
+import React, { useState } from "react";
+import {
+  Box,
+  Stack,
+  Divider,
+  LinearProgress,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import styles from "../styles/about.module.css";
 import SkillRadarChart from "./comps/RadarChart";
 // import Tetris from "./comps/Tetris";
 
 const Skills = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // Adjusts based on the theme's breakpoints for 'sm'
+
   const expandedSkills = [
     {
       category: "Frontend and JavaScript Frameworks/Libraries",
@@ -34,6 +45,7 @@ const Skills = () => {
         { name: "Tailwind Css", value: 8 },
         { name: "Ant Design", value: 8 },
         { name: "Material UI", value: 8 },
+        { name: "StoryBook UI", value: 8 },
         { name: "React Canva", value: 5 },
         { name: "Airbus Design System", value: 8 },
       ],
@@ -44,6 +56,7 @@ const Skills = () => {
         { name: "Mysql", value: 7 },
         { name: "Postgresql", value: 8 },
         { name: "MongoDb", value: 6 },
+        { name: "DynamoDb", value: 6 },
         { name: "Firebase", value: 7 },
         { name: "Redis", value: 6 },
         { name: "SQLite", value: 7 },
@@ -71,47 +84,65 @@ const Skills = () => {
     },
   ];
 
+  const getColor = (value) => {
+    return "orange";
+  };
+
+  const getWidth = (value) => `${(value / 10) * 100}%`;
+
   return (
     <Box className={styles.skills} id="skills">
       <Box className={styles.skillsContent}>
         <Box className={styles.skillsContentText}>
           <h1 className={styles.skillsTitle}>Inventory()</h1>
-          {/* <Stack */}
-          {/* // direction="row"
-            className={styles.skillsStack}
-            divider={<Divider orientation="vertical" flexItem />}
-            spacing={2}
-          > */}
-          {/* {expandedSkills[0][0].map((skill, i) => {
-              return <Item key={i}>{skill}</Item>;
-            })}
-            {mySkills[1][1].map((skill, i) => {
-              return <Item key={i}>{skill}</Item>;
-            })}
-            {mySkills[2][2].map((skill, i) => {
-              return <Item key={i}>{skill}</Item>;
-            })}
-            {mySkills[3][3].map((skill, i) => {
-              return <Item key={i}>{skill}</Item>;
-            })} */}
-
-          {/* {expandedSkills.map((skill, i) => {
-              return (
+          {isMobile ? (
+            <Stack
+              // direction="row"
+              className={styles.skillsStack}
+              divider={<Divider orientation="vertical" flexItem />}
+              spacing={2}
+            >
+              {expandedSkills.slice(0, 1).map((skill, i) => (
                 <React.Fragment key={i}>
-                  {" "}
-                  <h4>{skill.category}</h4>
-                  <ul>
-                    {skill.skills.map((eachSkill, j) => {
-                      return <li key={j}>{eachSkill}</li>;
-                    })}
+                  <Typography variant="h6">{skill.category}</Typography>
+                  <ul style={{ padding: "0px" }}>
+                    {skill.skills.map((eachSkill, j) => (
+                      <li key={j} className={styles.skillItem}>
+                        <Box sx={{ width: "100%", backgroundColor: "#3f311c" }}>
+                          <Box
+                            sx={{
+                              height: "100%",
+                              width: getWidth(eachSkill.value),
+                              backgroundColor: getColor(eachSkill.value),
+                              transition: "width 0.5s ease-in-out",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+
+                              color: "#000",
+                            }}
+                          >
+                            <Typography
+                              variant="body1"
+                              className={styles.skillName}
+                            >
+                              {eachSkill.name}
+                            </Typography>
+                            {/* <Typography variant="body1">
+                              {/* SCORE: {eachSkill.value} */}
+                            {/* </Typography> */}
+                          </Box>
+                        </Box>
+                      </li>
+                    ))}
                   </ul>
                 </React.Fragment>
-              );
-            })} */}
-
-          {/* </Stack> */}
-          <SkillRadarChart skills={expandedSkills} />
-          {/* <Tetris /> */}
+              ))}
+            </Stack>
+          ) : (
+            <SkillRadarChart skills={expandedSkills} />
+          )}
+          {/* <Tetris />  */}
         </Box>
       </Box>
     </Box>
