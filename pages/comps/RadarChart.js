@@ -8,7 +8,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Radar } from "react-chartjs-2";
+import { Bar, Radar } from "react-chartjs-2";
 
 ChartJS.register(
   RadialLinearScale,
@@ -63,6 +63,8 @@ const SkillRadarChart = ({ skills }) => {
         },
       },
     },
+    // maintainAspectRatio: false,
+    // width: window.innerWidth - 200,
   };
 
   // console.log(data);

@@ -29,8 +29,8 @@
   /* transition: all 0.3s ease-in; */
 }
 .circle:hover {
-  transform: scale(1.2) !important;
-  transition: all 0.1s ease-in;
+  transform: scale(1.1) !important;
+  transition: all 0.2s ease-in-out;
 }
 .red {
   background-image: url("../pages/images/logos/airbus.jpeg");
@@ -87,4 +87,16 @@
 }
 .project4 {
   background-image: url("../pages/images/logos/pricefinder.webp");
+}
+
+@media only screen and (max-width: 990px) {
+  .circleContainer {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media only screen and (max-width: 720px) {
+  .circleContainer {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
