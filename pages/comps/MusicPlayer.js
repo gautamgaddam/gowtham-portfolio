@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
@@ -17,7 +17,13 @@ export default function MusicPlayer() {
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
-
+  useEffect(() => {
+    return () => {
+      // console.log("unmount", isPlaying);
+      setIsPlaying(false);
+      audioRef.current.pause();
+    };
+  }, []);
   const handlePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -50,6 +56,7 @@ export default function MusicPlayer() {
     audioRef.current.play();
     setIsPlaying(true);
   };
+  // console.log(isPlaying);
   return (
     <div className={styles.wrap}>
       <div className={styles.album}>

@@ -63,11 +63,8 @@ const SkillRadarChart = ({ skills }) => {
         },
       },
     },
-    // maintainAspectRatio: false,
-    // width: window.innerWidth - 200,
   };
 
-  // console.log(data);
   return (
     <div>
       <Radar data={data} options={options} />

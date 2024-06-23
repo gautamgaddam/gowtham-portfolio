@@ -71,7 +71,7 @@ const Game1 = () => {
       </Typography>
       <div className={styles.circleContainer}>
         {projects.map((color, index) => (
-          <Tooltip title={color.title}>
+          <Tooltip title={color.title} key={index}>
             <div
               key={index}
               ref={(el) => {
