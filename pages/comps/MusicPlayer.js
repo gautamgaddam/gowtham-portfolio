@@ -21,7 +21,9 @@ export default function MusicPlayer() {
     return () => {
       // console.log("unmount", isPlaying);
       setIsPlaying(false);
-      audioRef.current.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
     };
   }, []);
   const handlePlayPause = () => {
