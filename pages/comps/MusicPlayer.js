@@ -56,7 +56,7 @@ export default function MusicPlayer() {
     audioRef.current.play();
     setIsPlaying(true);
   };
-  console.log(isPlaying);
+  // console.log(isPlaying);
   return (
     <div className={styles.wrap}>
       <div className={styles.album}>

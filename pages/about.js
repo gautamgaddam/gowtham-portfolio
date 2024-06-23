@@ -10,7 +10,7 @@ const About = () => {
   const updatePosition = () => {
     if (divRef.current) {
       const rect = divRef.current.getBoundingClientRect();
-      console.log("rect", rect);
+      // console.log("rect", rect);
       setPosition(rect.y);
     }
   };
