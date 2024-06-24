@@ -29,8 +29,14 @@
   /* transition: all 0.3s ease-in; */
 }
 .circle:hover {
+  /* cursor: pointer; */
   transform: scale(1.1) !important;
   transition: all 0.2s ease-in-out;
+}
+.dialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .red {
   background-image: url("../pages/images/logos/airbus.jpeg");
