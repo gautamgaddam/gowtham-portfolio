@@ -1,12 +1,49 @@
-import styles from "../../../styles/battles.module.css";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap, { Power3 } from "gsap";
-import { Tooltip, Typography } from "@mui/material";
+import {
+  Tooltip,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Button,
+  IconButton,
+} from "@mui/material";
 import { useRouter } from "next/router";
+import Slide from "@mui/material/Slide";
+import { CloseSharp } from "@mui/icons-material";
+import Tetris from "../../comps/Tetris";
+import styles from "../../../styles/battles.module.css";
+import { title } from "process";
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
+
 const Game1 = () => {
   const router = useRouter();
   const circlesRef = useRef([]);
   const projectsRef = useRef([]);
+  const [open, setOpen] = useState(false);
+  const [reset, setReset] = useState(false);
+  const handleClickOpen = (color) => {
+    // console.log(color);
+    if (color?.title === "Tetris") {
+      setOpen(true);
+    }
+    if (color?.title === "TradeSense") {
+      const url = "https://tradesense.streamlit.app/";
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (newWindow) newWindow.opener = null;
+    }
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   const colors = [
     { name: "pink", title: "Sopra Steria" },
     { name: "red", title: "Airbus" },
@@ -73,12 +110,15 @@ const Game1 = () => {
         {projects.map((color, index) => (
           <Tooltip title={color.title} key={index}>
             <div
+              style={{
+                cursor: index === 0 || index === 1 ? "pointer" : "default",
+              }}
               key={index}
               ref={(el) => {
                 projectsRef.current[index] = el;
               }}
               className={`${styles.circle} ${styles[color.name]}`}
-              // onClick={() => openProject(color)}
+              onClick={() => handleClickOpen(color)}
             />
           </Tooltip>
         ))}
@@ -104,6 +144,23 @@ const Game1 = () => {
           </Tooltip>
         ))}
       </div>
+      <Dialog
+        open={open}
+        TransitionComponent={Transition}
+        keepMounted
+        onClose={handleClose}
+        aria-describedby="alert-dialog-slide-description"
+      >
+        <DialogTitle className={styles.dialogHeader}>
+          Tetris
+          <IconButton onClick={() => handleClose()}>
+            <CloseSharp />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent className={styles.dialogContent}>
+          {open && <Tetris />}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

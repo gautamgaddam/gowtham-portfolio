@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 import styles from "../styles/about.module.css";
 import SkillRadarChart from "./comps/RadarChart";
-// import Tetris from "./comps/Tetris";
 
 const Skills = () => {
   const theme = useTheme();
@@ -142,7 +141,6 @@ const Skills = () => {
           ) : (
             <SkillRadarChart skills={expandedSkills} />
           )}
-          {/* <Tetris />  */}
         </Box>
       </Box>
     </Box>

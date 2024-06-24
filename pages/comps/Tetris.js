@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/tetris.module.css";
+import { PauseCircleFilled, PlayCircleFilled } from "@mui/icons-material";
+import { IconButton } from "@mui/material";
 
-const Tetris = () => {
+const Tetris = ({ reset }) => {
   const canvasRef = useRef(null);
   // Tetromino shapes
   const tetrominos = [
@@ -48,34 +50,53 @@ const Tetris = () => {
       [0, 0, 0],
     ],
   ];
+  // Game state variables
+  let grid;
+  let currentPiece;
+  let nextPiece;
+  let score;
+  const [isGameOver, setIsGameOver] = useState(false);
+  let isPaused;
+  let dropInterval;
+  let lastDropTime;
+  let dropTimer;
+  let ctx;
+
+  // Game control elements
+  let startButton;
+  let pauseButton;
+  let scoreDisplay;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const ctx = canvas.getContext("2d");
+      ctx = canvas.getContext("2d");
       const gridSize = 20; // Size of each cell in pixels
       const gridWidth = canvas.width / gridSize; // Number of cells horizontally
       const gridHeight = canvas.height / gridSize; // Number of cells vertically
 
       // Game state variables
-      let grid = createEmptyGrid(); // 2D array representing the game grid
-      let currentPiece = null; // The current moving piece
-      let nextPiece = createRandomPiece(); // The next piece to be spawned
-      let score = 0; // Player's score
-      let isGameOver = false; // Flag indicating if the game is over
-      let isPaused = true; // Flag indicating if the game is paused
-      let dropInterval = 2500; // Time interval for dropping pieces (in milliseconds)
-      let lastDropTime = Date.now(); // Track the last drop time
-      let dropTimer = null;
+      grid = createEmptyGrid(); // 2D array representing the game grid
+      currentPiece = null; // The current moving piece
+      nextPiece = createRandomPiece(); // The next piece to be spawned
+      score = 0; // Player's score
+      // setIsGameOver false; // Flag indicating if the game is over
+      isPaused = true; // Flag indicating if the game is paused
+      dropInterval = 1500; // Time interval for dropping pieces (in milliseconds)
+      lastDropTime = Date.now(); // Track the last drop time
+      dropTimer = null;
       // Game control elements
-      const startButton = document.getElementById("start-button");
-      const pauseButton = document.getElementById("pause-button");
-      const scoreDisplay = document.getElementById("score-display");
+      startButton = document.getElementById("start-button");
+      pauseButton = document.getElementById("pause-button");
+      scoreDisplay = document.getElementById("score-display");
+      // Draw the initial empty grid
+      drawGrid();
 
       // Event listeners
       document.addEventListener("keydown", handleKeyDown);
       startButton.addEventListener("click", startGame);
       pauseButton.addEventListener("click", togglePause);
+      // resetButton.addEventListener("click");
 
       // Helper functions
       function createEmptyGrid() {
@@ -100,10 +121,18 @@ const Tetris = () => {
       function drawGrid() {
         // Renders the game grid on the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         for (let y = 0; y < gridHeight; y++) {
           for (let x = 0; x < gridWidth; x++) {
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 0.2;
+            ctx.strokeRect(x * gridSize, y * gridSize, gridSize, gridSize);
             if (grid[y][x]) {
+              ctx.fillStyle = "#fff";
               ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+              ctx.strokeStyle = "#fff";
+              ctx.strokeRect(x * gridSize, y * gridSize, gridSize, gridSize);
             }
           }
         }
@@ -116,7 +145,15 @@ const Tetris = () => {
         for (let row = 0; row < rotatedShape.length; row++) {
           for (let col = 0; col < rotatedShape[row].length; col++) {
             if (rotatedShape[row][col]) {
+              ctx.fillStyle = "#fff";
               ctx.fillRect(
+                (x + col) * gridSize,
+                (y + row) * gridSize,
+                gridSize,
+                gridSize
+              );
+              ctx.strokeStyle = "#000";
+              ctx.strokeRect(
                 (x + col) * gridSize,
                 (y + row) * gridSize,
                 gridSize,
@@ -129,22 +166,24 @@ const Tetris = () => {
 
       function movePiece(direction) {
         // Moves the current piece in the specified direction
-        let newX = currentPiece.x;
-        let newY = currentPiece.y;
-        switch (direction) {
-          case "left":
-            newX--;
-            break;
-          case "right":
-            newX++;
-            break;
-          case "down":
-            newY++;
-            break;
-        }
-        if (isValidPosition(currentPiece, newX, newY)) {
-          currentPiece.x = newX;
-          currentPiece.y = newY;
+        if (currentPiece && (currentPiece?.x || currentPiece?.y)) {
+          let newX = currentPiece?.x || 0;
+          let newY = currentPiece?.y || 0;
+          switch (direction) {
+            case "left":
+              newX--;
+              break;
+            case "right":
+              newX++;
+              break;
+            case "down":
+              newY++;
+              break;
+          }
+          if (isValidPosition(currentPiece, newX, newY)) {
+            currentPiece.x = newX;
+            currentPiece.y = newY;
+          }
         }
       }
 
@@ -238,7 +277,7 @@ const Tetris = () => {
       function handleKeyDown(event) {
         // Handles user input for moving/rotating the current piece
         if (!isPaused && !isGameOver) {
-          console.log(event.code);
+          // console.log(event.code);
           switch (event.code) {
             case "ArrowLeft":
               movePiece("left");
@@ -260,11 +299,13 @@ const Tetris = () => {
       }
 
       function startGame() {
+        // document.body.style.overflow = "hidden";
         // Initializes the game state and starts the game loop
         grid = createEmptyGrid();
         currentPiece = createRandomPiece();
         score = 0;
-        isGameOver = false;
+        // isGameOver = false;
+        setIsGameOver(false);
         isPaused = false;
         scoreDisplay.textContent = `Score: ${score}`;
         startButton.disabled = true;
@@ -274,12 +315,15 @@ const Tetris = () => {
       }
 
       function togglePause() {
+        // console.log("test", isPaused);
         // Pauses or resumes the game
         isPaused = !isPaused;
         pauseButton.textContent = isPaused ? "Resume" : "Pause";
         if (isPaused) {
+          // document.body.style.overflow = "auto";
           clearInterval(dropTimer);
         } else {
+          // document.body.style.overflow = "hidden";
           dropTimer = setInterval(gameLoop, 1000 / 60); // 60 FPS game loop
         }
       }
@@ -287,7 +331,7 @@ const Tetris = () => {
       function gameOver() {
         // Handles game over
         clearInterval(dropTimer);
-        isGameOver = true;
+        setIsGameOver(true);
         startButton.disabled = false;
         pauseButton.disabled = true;
         console.log(`Game Over! Your score: ${score}`);
@@ -323,10 +367,8 @@ const Tetris = () => {
         }
         requestAnimationFrame(gameLoop);
       }
-
-      // Start the game loop
-      gameLoop();
     }
+    // Start the game loop
   }, []);
 
   return (
@@ -335,18 +377,23 @@ const Tetris = () => {
         <canvas
           id="game-canvas"
           className={styles.gameCanvas}
-          width="640"
-          height="400"
+          width="200"
+          height="300"
           ref={canvasRef}
         ></canvas>
         <div id="controls" className={styles.controls}>
           <div id="score-display" className={styles.scoreDisplay}>
             Score: 0
           </div>
-          <button id="start-button">Start</button>
-          <button id="pause-button" disabled>
-            Pause
-          </button>
+          <div>
+            {" "}
+            <button className={styles.buttonTetris} id="start-button">
+              Start
+            </button>
+            <button className={styles.buttonTetris} id="pause-button" disabled>
+              Pause
+            </button>
+          </div>
         </div>
       </div>
     </div>
