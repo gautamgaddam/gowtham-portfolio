@@ -62,3 +62,26 @@
   text-align: center;
   width: 100px;
 }
+@media only screen and (max-width: 768px) {
+  .tetrisBody {
+    height: auto;
+  }
+  .controls {
+    position: fixed;
+
+    flex-direction: column;
+    left: 0px;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  .scoreDisplay {
+    padding: 5px;
+    font-size: 15px;
+    margin: 0px;
+    border: 1px solid orange;
+  }
+  .buttonTetris {
+    margin: 0px !important;
+    padding: 5px;
+  }
+}
