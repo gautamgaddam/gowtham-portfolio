@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/tetris.module.css";
-import { PauseCircleFilled, PlayCircleFilled } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
 
 const Tetris = ({ reset }) => {
   const canvasRef = useRef(null);
@@ -93,10 +91,11 @@ const Tetris = ({ reset }) => {
       drawGrid();
 
       // Event listeners
+      canvas.addEventListener("touchstart", handleTouchStart);
+      canvas.addEventListener("touchmove", handleTouchMove);
       document.addEventListener("keydown", handleKeyDown);
       startButton.addEventListener("click", startGame);
       pauseButton.addEventListener("click", togglePause);
-      // resetButton.addEventListener("click");
 
       // Helper functions
       function createEmptyGrid() {
@@ -297,6 +296,51 @@ const Tetris = ({ reset }) => {
           drawPiece(currentPiece);
         }
       }
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      function handleTouchStart(event) {
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        // console.log("event===>", touch);
+        rotatePiece();
+      }
+
+      function handleTouchMove(event) {
+        event.preventDefault(); // Prevent scrolling
+        const touch = event.touches[0];
+        // console.log("event===>", touch);
+        const touchEndX = touch.clientX;
+        const touchEndY = touch.clientY;
+
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          // Horizontal swipe
+          if (deltaX > 0) {
+            movePiece("right");
+          } else {
+            movePiece("left");
+          }
+        } else {
+          // Vertical swipe
+          if (deltaY > 0) {
+            movePiece("down");
+          } else {
+            rotatePiece();
+          }
+        }
+
+        // Redraw after movement
+        drawGrid();
+        drawPiece(currentPiece);
+
+        // Update touch start coordinates
+        touchStartX = touchEndX;
+        touchStartY = touchEndY;
+      }
 
       function startGame() {
         // document.body.style.overflow = "hidden";
@@ -385,15 +429,12 @@ const Tetris = ({ reset }) => {
           <div id="score-display" className={styles.scoreDisplay}>
             Score: 0
           </div>
-          <div>
-            {" "}
-            <button className={styles.buttonTetris} id="start-button">
-              Start
-            </button>
-            <button className={styles.buttonTetris} id="pause-button" disabled>
-              Pause
-            </button>
-          </div>
+          <button className={styles.buttonTetris} id="start-button">
+            Start
+          </button>
+          <button className={styles.buttonTetris} id="pause-button" disabled>
+            Pause
+          </button>
         </div>
       </div>
     </div>

@@ -18,6 +18,8 @@
 .gameCanvas {
   border: 1px solid black;
   box-shadow: 1px 4px 8px rgba(0, 0, 0, 0.5);
+
+  height: 100%;
 }
 
 .controls {
@@ -26,6 +28,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 10px;
 }
 
 .controls button {
@@ -70,18 +73,23 @@
     position: fixed;
 
     flex-direction: column;
-    left: 0px;
+
     align-items: flex-end;
     gap: 5px;
+  }
+  .gameCanvas {
+    width: 70vw;
   }
   .scoreDisplay {
     padding: 5px;
     font-size: 15px;
     margin: 0px;
     border: 1px solid orange;
+    width: 65px;
   }
   .buttonTetris {
     margin: 0px !important;
     padding: 5px;
+    width: 65px;
   }
 }
