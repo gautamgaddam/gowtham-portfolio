@@ -4,7 +4,6 @@ import {
   Container,
   IconButton,
   Drawer,
-  Toolbar,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -56,7 +55,6 @@ const Navbar = () => {
       }}
     >
       <Container>
-        {/* <Toolbar disableGutters> */}
         {isMobile ? (
           <>
             <IconButton

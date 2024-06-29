@@ -1,19 +1,8 @@
 import React from "react";
-import {
-  BottomNavigation,
-  Box,
-  BottomNavigationAction,
-  Paper,
-  Container,
-} from "@mui/material";
-import {
-  Restore as RestoreIcon,
-  HomeOutlined,
-  SportsScore,
-} from "@mui/icons-material";
+import { Box, BottomNavigationAction, Container } from "@mui/material";
+import { HomeOutlined, SportsScore } from "@mui/icons-material";
 import RocketIcon from "@mui/icons-material/Rocket";
 import Link from "next/link";
-import Tetris from "../comps/Tetris";
 const Footer = () => {
   const year = new Date().getFullYear();
   const allLinks = [
@@ -32,7 +21,7 @@ const Footer = () => {
       id: 1,
     },
     { route: "/battles", name: "Battles", icon: <SportsScore />, id: 2 },
-    { route: "/tetris", name: "Battles", icon: < HomeOutlined/>, id: 3 },
+    { route: "/tetris", name: "Battles", icon: <HomeOutlined />, id: 3 },
   ];
   const [value, setValue] = React.useState(0);
 
@@ -41,17 +30,6 @@ const Footer = () => {
   };
 
   return (
-    // <Paper
-    //   // sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
-    //   elevation={3}
-    // >
-    //   {" "}
-    //   <BottomNavigation value={value} onChange={handleChange}>
-    //     <Container>
-
-    //     </Container>
-    //   </BottomNavigation>
-    // </Paper>
     <Container className="footer-container">
       <footer>
         <Box display="flex" justifyContent={"space-between"} width="100%">

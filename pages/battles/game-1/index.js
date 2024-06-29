@@ -16,20 +16,16 @@ import Slide from "@mui/material/Slide";
 import { CloseSharp } from "@mui/icons-material";
 import Tetris from "../../comps/Tetris";
 import styles from "../../../styles/battles.module.css";
-import { title } from "process";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
 const Game1 = () => {
-  const router = useRouter();
   const circlesRef = useRef([]);
   const projectsRef = useRef([]);
   const [open, setOpen] = useState(false);
-  const [reset, setReset] = useState(false);
   const handleClickOpen = (color) => {
-    // console.log(color);
     if (color?.title === "Tetris") {
       setOpen(true);
     }
