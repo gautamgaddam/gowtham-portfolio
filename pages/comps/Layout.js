@@ -1,8 +1,8 @@
 import Footer from "./Footer";
 import Navbar from "./Navbar";
 import { Container } from "@mui/material";
-import BackgroundDark from "../images/darthvader2.png";
-import BackgroundLight from "../images/millenniumfalcon.jpeg";
+// import BackgroundDark from "../images/darthvader2.png";
+// import BackgroundLight from "../images/millenniumfalcon.jpeg";
 import { useTheme } from "@mui/material/styles";
 
 const Layout = ({ children }) => {

@@ -8,7 +8,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar, Radar } from "react-chartjs-2";
+import { Radar } from "react-chartjs-2";
 
 ChartJS.register(
   RadialLinearScale,

@@ -126,3 +126,53 @@ footer {
   position: relative;
   left: 0.65rem;
 }
+
+#loader {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.zipper {
+  position: relative;
+  width: 0;
+  height: 100%;
+  background-color: #121212;
+  overflow: hidden;
+  animation: unzip 0.5s forwards;
+}
+
+.zip-line {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background-color: #000;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.zip-puller {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: #000;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  animation: movePuller 0.5s forwards;
+}
+
+@keyframes unzip {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}

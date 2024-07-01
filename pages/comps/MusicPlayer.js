@@ -19,7 +19,6 @@ export default function MusicPlayer() {
   const audioRef = useRef(null);
   useEffect(() => {
     return () => {
-      // console.log("unmount", isPlaying);
       setIsPlaying(false);
       if (audioRef.current) {
         audioRef.current.pause();
@@ -58,7 +57,6 @@ export default function MusicPlayer() {
     audioRef.current.play();
     setIsPlaying(true);
   };
-  // console.log(isPlaying);
   return (
     <div className={styles.wrap}>
       <div className={styles.album}>

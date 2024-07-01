@@ -13,20 +13,22 @@ import darkTheme from "../styles/darkTheme";
 import ColorModeContext from "../styles/ColorModeContext";
 import "../styles/globals.css";
 import FavIcon from "../public/favicon_io/favicon-32x32.png";
+import { useRouter } from "next/router";
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
 export default function MyApp(props) {
   const { Component, emotionCache = clientSideEmotionCache, pageProps } = props;
-
+  const router = useRouter();
   // Set dark mode based on media query
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [darkMode, setDarkMode] = useState(prefersDarkMode);
   const [loading, setLoading] = useState(true);
+  console.log("router", router.pathname);
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
-    }, 1000);
+    }, 500);
   }, []);
   useEffect(() => {
     const mode = localStorage.getItem("mode") === "true";
@@ -45,6 +47,7 @@ export default function MyApp(props) {
     setDarkMode(newmode);
   };
   // console.log("darkMode", darkMode);
+
   return (
     <CacheProvider value={emotionCache}>
       <Head>
@@ -54,7 +57,13 @@ export default function MyApp(props) {
       </Head>
       {/* <ColorModeContext.Provider value={colorMode}> */}
       {loading ? (
-        <LinearProgress color="inherit" />
+        // <LinearProgress color="inherit" />
+        <div id="loader">
+          <div className="zipper">
+            {/* <div class="zip-line"></div> */}
+            {/* <div class="zip-puller"></div> */}
+          </div>
+        </div>
       ) : (
         <ColorModeContext.Provider
           value={{ darkMode, setDarkMode: _setDarkMode }}

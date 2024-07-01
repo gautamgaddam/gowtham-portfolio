@@ -4,7 +4,6 @@ import {
   Container,
   IconButton,
   Drawer,
-  Toolbar,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -56,7 +55,6 @@ const Navbar = () => {
       }}
     >
       <Container>
-        {/* <Toolbar disableGutters> */}
         {isMobile ? (
           <>
             <IconButton
@@ -95,7 +93,7 @@ const Navbar = () => {
             <Link href="/battles">Battles</Link>
             <Link href="/#contact">Contact</Link>
             <Link
-              href="../resume/17_06_2024.pdf"
+              href="../resume/01_07_2024.pdf"
               target="_blank"
               rel="noopener noreferrer"
             >
