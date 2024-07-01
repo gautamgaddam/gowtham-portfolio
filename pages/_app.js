@@ -59,7 +59,7 @@ export default function MyApp(props) {
       {loading ? (
         // <LinearProgress color="inherit" />
         <div id="loader">
-          <div class="zipper">
+          <div className="zipper">
             {/* <div class="zip-line"></div> */}
             {/* <div class="zip-puller"></div> */}
           </div>

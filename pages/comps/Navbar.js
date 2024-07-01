@@ -93,7 +93,7 @@ const Navbar = () => {
             <Link href="/battles">Battles</Link>
             <Link href="/#contact">Contact</Link>
             <Link
-              href="../resume/gowtham_cv.pdf"
+              href="../resume/01_07_2024.pdf"
               target="_blank"
               rel="noopener noreferrer"
             >

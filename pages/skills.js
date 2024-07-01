@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Stack,
   Divider,
-  LinearProgress,
   Typography,
   useMediaQuery,
   useTheme,
@@ -31,6 +30,10 @@ const Skills = () => {
         { name: "Next.js", value: 7 },
         { name: "React Native", value: 6 },
       ],
+    },
+    {
+      category: "Backend Technologies",
+      skills: [{ name: "Python", value: 5 }],
     },
     {
       category: "Web Development Technologies",
