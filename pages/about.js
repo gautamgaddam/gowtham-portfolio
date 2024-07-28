@@ -49,9 +49,9 @@ const About = () => {
             hi.
           </p>
 
-          <div id="musicPlayer" ref={divRef}>
+          {/* <div id="musicPlayer" ref={divRef}>
             <MusicPlayer />
-          </div>
+          </div> */}
         </Box>
         <Box className={styles.aboutContentPicture}></Box>
       </Box>
