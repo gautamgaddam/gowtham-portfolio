@@ -5,6 +5,7 @@ import {
   SportsScore,
   LinkedIn,
   Twitter,
+  GitHub,
 } from "@mui/icons-material";
 import Link from "next/link";
 
@@ -27,6 +28,13 @@ const Footer = () => {
       route: "https://x.com/gautamgaddam",
       name: "Twitter",
       icon: <Twitter />,
+      id: 2,
+      isExternal: true,
+    },
+    {
+      route: "https://github.com/gautamgaddam",
+      name: "Github",
+      icon: <GitHub />,
       id: 2,
       isExternal: true,
     },
