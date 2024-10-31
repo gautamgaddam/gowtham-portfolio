@@ -6,6 +6,7 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
+import emailjs from "@emailjs/browser";
 import styles from "../styles/contact.module.css";
 
 const ContactForm = () => {
@@ -16,13 +17,13 @@ const ContactForm = () => {
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    if (submit) {
-      setTimeout(() => {
-        setSubmit(false);
-      }, 3000);
-    }
-  }, [submit]);
+  // useEffect(() => {
+  //   if (submit) {
+  //     setTimeout(() => {
+  //       setSubmit(false);
+  //     }, 3000);
+  //   }
+  // }, [submit]);
 
   const validateForm = () => {
     let errors = {};
@@ -36,6 +37,9 @@ const ContactForm = () => {
     if (!email.trim()) {
       errors.email = "Email is required";
       isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = "Email is invalid";
+      isValid = false;
     }
 
     if (!message.trim()) {
@@ -47,17 +51,40 @@ const ContactForm = () => {
     return isValid;
   };
 
-  const submitBtn = (e) => {
+  const submitBtn = async (e) => {
     e.preventDefault();
+
     if (validateForm()) {
       setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
+
+      try {
+        const templateParams = {
+          from_name: name,
+          from_email: email,
+          message: message + ` From: ${email} `,
+          to_name: "Gowtham Gaddam", // Replace with your name
+        };
+
+        await emailjs.send(
+          "service_portfolio_gaddam", // Replace with your EmailJS service ID
+          "template_egzlpcf", // Replace with your EmailJS template ID
+          templateParams,
+          "bC62hbKjJBY4fZshL" // Replace with your EmailJS public key
+        );
+
         setSubmit(true);
         setEmail("");
         setMessage("");
         setName("");
-      }, 3000);
+        setTimeout(() => {
+          setSubmit(false);
+        }, 5000);
+      } catch (error) {
+        console.error("Failed to send email:", error);
+        alert("Failed to send message. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -141,7 +168,7 @@ const ContactForm = () => {
         </Button>
         {submit && (
           <span className={styles.contactMessage}>
-            Thanks for reaching out, Will Contact you soon...
+            Thanks for reaching out! I'll get back to you soon.
           </span>
         )}
       </Box>
