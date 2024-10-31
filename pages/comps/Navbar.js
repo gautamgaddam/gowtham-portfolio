@@ -35,14 +35,14 @@ const Navbar = () => {
       <Link href="/battles" passHref>
         <Box sx={{ my: 2 }}>Battles</Box>
       </Link>
-      <Link href="/#contact" passHref>
+      {/* <Link href="/#contact" passHref>
         <Box sx={{ my: 2 }}>Contact</Box>
-      </Link>
-      <Link href="../resume/17_06_2024.pdf" passHref>
+      </Link> */}
+      {/* <Link href="../resume/gowtham_cv.pdf" passHref>
         <Box sx={{ my: 2 }} target="_blank" rel="noopener noreferrer">
           Resume
         </Box>
-      </Link>
+      </Link> */}
     </Box>
   );
 
@@ -92,13 +92,13 @@ const Navbar = () => {
             <Link href="/#skills">Inventory</Link>
             <Link href="/battles">Battles</Link>
             <Link href="/#contact">Contact</Link>
-            <Link
+            {/* <Link
               href="../resume/gowtham_cv.pdf"
               target="_blank"
               rel="noopener noreferrer"
             >
               Resume
-            </Link>
+            </Link> */}
           </Box>
         )}
         {/* </Toolbar> */}
