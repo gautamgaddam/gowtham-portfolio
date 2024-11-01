@@ -31,13 +31,13 @@ const Footer = () => {
       id: 2,
       isExternal: true,
     },
-    {
-      route: "https://github.com/gautamgaddam",
-      name: "Github",
-      icon: <GitHub />,
-      id: 2,
-      isExternal: true,
-    },
+    // {
+    //   route: "https://github.com/gautamgaddam",
+    //   name: "Github",
+    //   icon: <GitHub />,
+    //   id: 2,
+    //   isExternal: true,
+    // },
     {
       route: "/battles",
       name: "Battles",
