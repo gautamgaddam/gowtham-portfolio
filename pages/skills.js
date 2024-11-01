@@ -16,7 +16,7 @@ const Skills = () => {
 
   const expandedSkills = [
     {
-      category: "Frontend and JavaScript Frameworks/Libraries",
+      category: "JavaScript Frameworks/Libraries",
       skills: [
         { name: "Javascript", value: 8 },
         { name: "ReactJs", value: 8 },
@@ -104,7 +104,7 @@ const Skills = () => {
               divider={<Divider orientation="vertical" flexItem />}
               spacing={2}
             >
-              {expandedSkills.slice(0, 1).map((skill, i) => (
+              {expandedSkills.slice(0, 2).map((skill, i) => (
                 <React.Fragment key={i}>
                   <Typography variant="h6">{skill.category}</Typography>
                   <ul style={{ padding: "0px" }}>
