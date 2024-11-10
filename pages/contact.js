@@ -96,7 +96,7 @@ const ContactForm = () => {
         gutterBottom
         className={styles.formTitle}
       >
-        Contact()
+        Contact
       </Typography>
       <Typography
         variant="body1"

@@ -14,6 +14,7 @@ import ColorModeContext from "../styles/ColorModeContext";
 import "../styles/globals.css";
 import FavIcon from "../public/favicon_io/favicon-32x32.png";
 import { useRouter } from "next/router";
+import { GoogleAnalytics } from "nextjs-google-analytics";
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
@@ -74,6 +75,7 @@ export default function MyApp(props) {
 
             <CssBaseline />
             <Layout>
+              <GoogleAnalytics trackPageViews gaMeasurementId="G-2HSBG697FV" />
               <Component {...pageProps} />
             </Layout>
           </ThemeProvider>
