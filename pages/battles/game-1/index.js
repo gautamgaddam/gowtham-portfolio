@@ -92,7 +92,7 @@ const Game1 = () => {
         gutterBottom
         className={styles.formTitle}
       >
-        Projects()
+        Projects
       </Typography>
       <Typography
         variant="h4"

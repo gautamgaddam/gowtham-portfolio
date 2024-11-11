@@ -29,6 +29,7 @@ const Skills = () => {
         { name: "TypeScript", value: 7 },
         { name: "Next.js", value: 7 },
         { name: "React Native", value: 6 },
+        { name: "Amplience (Headless CMS)", value: 6.5 },
       ],
     },
     {
@@ -50,6 +51,7 @@ const Skills = () => {
         { name: "StoryBook UI", value: 8 },
         { name: "React Canva", value: 5 },
         { name: "Airbus Design System", value: 8 },
+        { name: "Lightning Web Components (LWC)", value: 6 },
       ],
     },
     {
@@ -81,6 +83,8 @@ const Skills = () => {
         { name: "Git and Version Control", value: 9 },
         { name: "Jest Testing Framework", value: 8 },
         { name: "Sinon", value: 7 },
+        { name: "Mocha", value: 7 },
+        { name: "Chai", value: 7 },
         { name: "React Testing Library", value: 8 },
       ],
     },
@@ -96,7 +100,7 @@ const Skills = () => {
     <Box className={styles.skills} id="skills">
       <Box className={styles.skillsContent}>
         <Box className={styles.skillsContentText}>
-          <h1 className={styles.skillsTitle}>Inventory()</h1>
+          <h1 className={styles.skillsTitle}>Inventory</h1>
           {isMobile ? (
             <Stack
               // direction="row"
