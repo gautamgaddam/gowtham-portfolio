@@ -4,7 +4,7 @@ import {
   HomeOutlined,
   SportsScore,
   LinkedIn,
-  Twitter,
+  XIcon,
   GitHub,
 } from "@mui/icons-material";
 import Link from "next/link";
@@ -26,8 +26,8 @@ const Footer = () => {
     },
     {
       route: "https://x.com/gautamgaddam",
-      name: "Twitter",
-      icon: <Twitter />,
+      name: "X",
+      icon: <XIcon />,
       id: 2,
       isExternal: true,
     },
