@@ -4,11 +4,11 @@ import {
   HomeOutlined,
   SportsScore,
   LinkedIn,
-  XIcon,
+  Twitter,
   GitHub,
 } from "@mui/icons-material";
 import Link from "next/link";
-
+import XIcon from "@mui/icons-material/X";
 const Footer = () => {
   const allLinks = [
     {

@@ -30,7 +30,7 @@ const Game1 = () => {
       setOpen(true);
     }
     if (color?.title === "TradeSense") {
-      const url = "https://tradesense.streamlit.app/";
+      const url = "";
       const newWindow = window.open(url, "_blank", "noopener,noreferrer");
       if (newWindow) newWindow.opener = null;
     }
@@ -43,12 +43,14 @@ const Game1 = () => {
   const colors = [
     { name: "pink", title: "Sopra Steria" },
     { name: "red", title: "Airbus" },
-    { name: "blue", title: "Verizon" },
-    { name: "orange", title: "Ebay" },
+    { name: "white", title: "BiscuitData" },
+
     { name: "green", title: "FalconAvl" },
     { name: "yellow", title: "InterviewBuddy" },
     { name: "purple", title: "Ulta Beauty" },
     { name: "teal", title: "Walmart" },
+    { name: "blue", title: "Verizon" },
+    { name: "orange", title: "Ebay" },
   ];
 
   const projects = [
@@ -58,7 +60,7 @@ const Game1 = () => {
       title: "TradeSense",
       link: "https://tradesense.streamlit.app/",
     },
-    { name: "project3", title: "Gita Bot", link: "Gita Bot" },
+    { name: "project3", title: "BobTheBuilder", link: "BobTheBuilder" },
     { name: "project4", title: "Price Finder", link: "Price Finder" },
   ];
   useEffect(() => {
