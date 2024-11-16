@@ -25,9 +25,7 @@
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-d3-radar": "^1.0.0-rc6",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
+    "react-dom": "^18.2.0",
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
