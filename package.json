@@ -1,12 +1,11 @@
 {
-  "name": "ninjalist",
+  "name": "gowtham-portfolio",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "vercel-build": "npm install --save-dev typescript @types/node @types/react @types/react-dom --legacy-peer-deps && next build"
+    "start": "next start"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -15,10 +14,8 @@
     "@emotion/server": "^11.11.0",
     "@emotion/styled": "^11.13.0",
     "@gsap/react": "^2.1.0",
-    "@mui/icons-material": "^6.1.7",
-    "@mui/material": "^6.1.7",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@mui/icons-material": "^5.15.6",
+    "@mui/material": "^5.15.6",
     "chart.js": "^4.4.1",
     "gsap": "^3.12.5",
     "howler": "^2.2.4",
@@ -27,10 +24,10 @@
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-d3-radar": "^1.0.0-rc6",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.9.0",
-    "typescript": "^5.6.3"
+    "react-dom": "^18.2.0",
+    "typescript": "^5.6.3",
+    "@types/node": "^20.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1"
   }
 }
