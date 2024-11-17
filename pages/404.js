@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 const NotFound = () => {
   const router = useRouter();
   useEffect(() => {
-    console.log("404 fired");
+    // console.log("404 fired");
     setTimeout(() => {
       router.back("/");
     }, 3000);

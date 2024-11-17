@@ -8,7 +8,7 @@ import {
   GitHub,
 } from "@mui/icons-material";
 import Link from "next/link";
-
+import XIcon from "@mui/icons-material/X";
 const Footer = () => {
   const allLinks = [
     {
@@ -18,7 +18,7 @@ const Footer = () => {
       id: 0,
     },
     {
-      route: "https://www.linkedin.com/in/gowtham-kumar-g-92b757119/",
+      route: "https://www.linkedin.com/in/gowtham-gaddam/",
       name: "LinkedIn",
       icon: <LinkedIn />,
       id: 1,
@@ -26,8 +26,8 @@ const Footer = () => {
     },
     {
       route: "https://x.com/gautamgaddam",
-      name: "Twitter",
-      icon: <Twitter />,
+      name: "X",
+      icon: <XIcon />,
       id: 2,
       isExternal: true,
     },

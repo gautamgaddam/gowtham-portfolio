@@ -62,7 +62,9 @@
 .green {
   background-image: url("../pages//images/logos/falconavl.png");
 }
-
+.white {
+  background-image: url("../pages//images/logos/biscuitdata.png");
+}
 .circleContainer {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
