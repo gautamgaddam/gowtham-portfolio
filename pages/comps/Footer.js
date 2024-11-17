@@ -18,7 +18,7 @@ const Footer = () => {
       id: 0,
     },
     {
-      route: "https://www.linkedin.com/in/gowtham-kumar-g-92b757119/",
+      route: "https://www.linkedin.com/in/gowtham-gaddam/",
       name: "LinkedIn",
       icon: <LinkedIn />,
       id: 1,

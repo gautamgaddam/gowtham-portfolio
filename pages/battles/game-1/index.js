@@ -60,7 +60,7 @@ const Game1 = () => {
       title: "TradeSense",
       link: "https://tradesense.streamlit.app/",
     },
-    { name: "project3", title: "BobTheBuilder", link: "BobTheBuilder" },
+    { name: "project3", title: "Gita Bot", link: "Gita Bot" },
     { name: "project4", title: "Price Finder", link: "Price Finder" },
   ];
   useEffect(() => {
