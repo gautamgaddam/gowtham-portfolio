@@ -110,7 +110,7 @@ const About = () => {
             className={styles.aboutRatesText}
           >
             MIGA: If you have an idea which fixes <strong>INDIA's</strong>{" "}
-            problems like traffic, pollution etc and restore the{" "}
+            problems like traffic, pollution etc using tech! and restore the{" "}
             <strong>
               <u>
                 {" "}
