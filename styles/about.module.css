@@ -88,6 +88,21 @@
   font-weight: 10px;
   padding-left: 10px;
 }
+
+.aboutRatesText {
+  color: #2cff178c !important;
+}
+.aboutFreelanceRates {
+  margin-bottom: 0.5rem !important;
+  margin-top: 0.5rem !important;
+}
+.aboutCloseButton {
+  background-color: #1e1e1e !important;
+  transition: background-color 0.3s ease !important;
+  width: auto !important;
+  border: 2px solid #fff;
+  color: rgb(128 129 131) !important;
+}
 @media only screen and (max-width: 768px) {
   .aboutContent {
     flex-direction: column-reverse;
