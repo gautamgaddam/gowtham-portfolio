@@ -111,8 +111,15 @@ const About = () => {
           >
             MIGA: If you have an idea which fixes <strong>INDIA's</strong>{" "}
             problems like traffic, pollution etc and restore the{" "}
-            <strong>culture</strong> of India, hit me up we can collaborate i
-            will do it for free .✌️
+            <strong>
+              <u>
+                {" "}
+                <a href="https://en.wikipedia.org/wiki/Rigveda" target="_blank">
+                  culture
+                </a>
+              </u>
+            </strong>{" "}
+            of India, hit me up we can collaborate i will do it for free .✌️
           </Typography>
         </DialogContent>
         <DialogActions>
