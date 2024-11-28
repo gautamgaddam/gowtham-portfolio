@@ -13,6 +13,7 @@ import styles from "../styles/about.module.css";
 import { useEffect, useRef, useState } from "react";
 import InfoIcon from "@mui/icons-material/Info";
 import PlaceIcon from "@mui/icons-material/Place";
+import GpsNotFixedIcon from "@mui/icons-material/GpsNotFixed";
 const About = () => {
   const divRef = useRef(null);
   const [position, setPosition] = useState(0);
@@ -123,7 +124,7 @@ const About = () => {
             rel="noopener noreferrer"
           >
             <span className={styles.aboutPlaceIcon}>
-              <PlaceIcon />
+              <GpsNotFixedIcon />
             </span>
           </a>
         </Box>

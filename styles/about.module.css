@@ -45,14 +45,14 @@
 }
 .aboutContentPicture:hover .aboutPlaceIcon {
   display: block;
-  animation: easeInOut 0.5s forwards;
+  animation: easeInOut 0.5s;
 }
 .aboutPlaceIcon {
   color: #50463e;
   cursor: pointer;
   display: none;
   position: absolute;
-  top: 55%;
+  top: 58%;
   left: 25%;
 }
 
@@ -180,5 +180,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+  }
+  .aboutPlaceIcon {
+    top: 59%;
   }
 }
