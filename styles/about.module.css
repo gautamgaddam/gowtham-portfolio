@@ -148,14 +148,14 @@
   }
 
   33% {
-    box-shadow: 0 0 15px rgb(0, 4, 255);
+    box-shadow: 0 0 15px 10px rgb(0, 4, 255);
   }
 
   66% {
     box-shadow: 0 0 15px red;
   }
   100% {
-    box-shadow: 0 0 15px rgb(0, 4, 255);
+    box-shadow: 0 0 15px 10px rgb(0, 4, 255);
   }
 }
 @keyframes easeInOut {
