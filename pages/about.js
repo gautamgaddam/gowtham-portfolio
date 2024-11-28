@@ -17,7 +17,7 @@ const About = () => {
   const divRef = useRef(null);
   const [position, setPosition] = useState(0);
   const [openDialog, setOpenDialog] = useState(false); // State to manage the dialog
-
+  const [trackTime, setTrackTime] = useState(0);
   const updatePosition = () => {
     if (divRef.current) {
       const rect = divRef.current.getBoundingClientRect();
@@ -61,6 +61,7 @@ const About = () => {
     const type = () => {
       if (!element) return;
       const currentText = texts[index];
+      setTrackTime(index);
       element.innerHTML = `${currentText.slice(
         0,
         charIndex
@@ -72,21 +73,24 @@ const About = () => {
       if (!isDeleting && charIndex < currentText.length) {
         charIndex++;
         setTimeout(type, 50);
+        // setTrackTime((prevTrackTime) => prevTrackTime + 50);
       } else if (isDeleting && charIndex > 0) {
         charIndex--;
         setTimeout(type, 100);
+        // setTrackTime((prevTrackTime) => prevTrackTime + 100);
       } else {
         isDeleting = !isDeleting;
         if (!isDeleting) {
           index = (index + 1) % texts.length;
         }
         setTimeout(type, 1000);
+        // setTrackTime((prevTrackTime) => prevTrackTime + 100);
       }
     };
 
     type();
   }, []);
-
+  console.log(trackTime);
   return (
     <Box className={styles.about} id="about">
       <Box className={styles.aboutContent}>
@@ -103,7 +107,7 @@ const About = () => {
           </Box>
 
           <p>
-            I am a
+            I am {trackTime === 3 ? "an" : "a"}
             <span className={styles.aboutTitle}>
               <span id="about_animated"></span>
             </span>
