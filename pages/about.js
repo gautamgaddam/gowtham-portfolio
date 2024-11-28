@@ -90,7 +90,7 @@ const About = () => {
 
     type();
   }, []);
-  console.log(trackTime);
+  // console.log(trackTime);
   return (
     <Box className={styles.about} id="about">
       <Box className={styles.aboutContent}>
