@@ -7,11 +7,12 @@ import {
   Button,
   Typography,
   Divider,
+  Tooltip,
 } from "@mui/material";
 import styles from "../styles/about.module.css";
 import { useEffect, useRef, useState } from "react";
 import InfoIcon from "@mui/icons-material/Info";
-
+import PlaceIcon from "@mui/icons-material/Place";
 const About = () => {
   const divRef = useRef(null);
   const [position, setPosition] = useState(0);
@@ -43,7 +44,49 @@ const About = () => {
   const closeInformation = () => {
     setOpenDialog(false); // Close the dialog
   };
-  // Location link https://maps.app.goo.gl/aXt7ww2zR8ReSLkg7
+
+  // Typing Animation Logic
+  useEffect(() => {
+    const element = document.getElementById("about_animated");
+    const texts = [
+      "Software Engineer 💻",
+      "Freelancer 🌍",
+      "Superjock 🏋️‍♂️",
+      "Environmentalist 🌱",
+    ];
+    let index = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+
+    const type = () => {
+      if (!element) return;
+      const currentText = texts[index];
+      element.innerHTML = `${currentText.slice(
+        0,
+        charIndex
+      )}<span class="cursor">|</span>`;
+
+      // const currentText = texts[index];
+      // element.textContent = currentText.slice(0, charIndex);
+
+      if (!isDeleting && charIndex < currentText.length) {
+        charIndex++;
+        setTimeout(type, 50);
+      } else if (isDeleting && charIndex > 0) {
+        charIndex--;
+        setTimeout(type, 100);
+      } else {
+        isDeleting = !isDeleting;
+        if (!isDeleting) {
+          index = (index + 1) % texts.length;
+        }
+        setTimeout(type, 1000);
+      }
+    };
+
+    type();
+  }, []);
+
   return (
     <Box className={styles.about} id="about">
       <Box className={styles.aboutContent}>
@@ -53,6 +96,7 @@ const About = () => {
               Gowtham Gaddam
               <InfoIcon
                 onClick={openInformation}
+                className={styles.infoIcon}
                 style={{ cursor: "pointer", marginLeft: "8px" }}
               />
             </h1>
@@ -61,14 +105,24 @@ const About = () => {
           <p>
             I am a
             <span className={styles.aboutTitle}>
-              Software Engineer/Freelancer
+              <span id="about_animated"></span>
             </span>
-            based in Bengaluru, India with solid expertise in building complex
-            web applications with cutting edge technologies. Feel free to say
-            hi.
+            <br />
+            based in India with solid expertise in building complex web
+            applications with cutting edge technologies. Feel free to say hi. 😊
           </p>
         </Box>
-        <Box className={styles.aboutContentPicture}></Box>
+        <Box className={styles.aboutContentPicture}>
+          <a
+            href="https://www.google.com/maps/place/Inam+Dattathreya+Peeta,+Karnataka/@13.416025,75.745685,14z/data=!3m1!4b1!4m6!3m5!1s0x3bbadf33ca5f7193:0x96e0bf36243f180!8m2!3d13.4171769!4d75.7429636!16s%2Fg%2F11vj7j0q0?entry=ttu&g_ep=EgoyMDI0MTEyNC4xIKXMDSoASAFQAw%3D%3D"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className={styles.aboutPlaceIcon}>
+              <PlaceIcon />
+            </span>
+          </a>
+        </Box>
       </Box>
 
       {/* Dialog Component */}
@@ -100,9 +154,6 @@ const About = () => {
             Hourly Rates: <strong>20$-60$ </strong>(negotiable and depends on
             the requirement).
           </Typography>
-          {/* <Typography variant="body2" color="textSecondary">
-            Monthly Rates: 2,25,000/- INR
-          </Typography> */}
           <Divider className={styles.aboutFreelanceRates} />
           <Typography
             variant="body2"
@@ -110,7 +161,8 @@ const About = () => {
             className={styles.aboutRatesText}
           >
             MIGA: If you have an idea which fixes <strong>INDIA's</strong>{" "}
-            problems like traffic, pollution etc using tech! and restore the{" "}
+            problems like traffic, pollution etc using tech!
+            {/* and restore the{" "}
             <strong>
               <u>
                 {" "}
@@ -119,7 +171,8 @@ const About = () => {
                 </a>
               </u>
             </strong>{" "}
-            of India, hit me up we can collaborate i will do it for free .✌️
+            of India */}
+            , hit me up we can collaborate.✌️
           </Typography>
         </DialogContent>
         <DialogActions>
