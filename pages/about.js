@@ -167,7 +167,7 @@ const About = () => {
           >
             MIGA: If you have an idea which fixes <strong>INDIA's</strong>{" "}
             problems like traffic, pollution etc using tech!
-            {/* and restore the{" "}
+            and restore the{" "}
             <strong>
               <u>
                 {" "}
@@ -176,7 +176,7 @@ const About = () => {
                 </a>
               </u>
             </strong>{" "}
-            of India */}
+            of India
             , hit me up we can collaborate.✌️
           </Typography>
         </DialogContent>
