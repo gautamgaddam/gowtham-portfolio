@@ -33,6 +33,10 @@ const Game1 = () => {
       const url = "";
       const newWindow = window.open(url, "_blank", "noopener,noreferrer");
       if (newWindow) newWindow.opener = null;
+    } else if (color?.title === "Gita Bot") {
+      const url = color.link;
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (newWindow) newWindow.opener = null;
     }
   };
 
@@ -60,7 +64,7 @@ const Game1 = () => {
       title: "TradeSense",
       link: "https://tradesense.streamlit.app/",
     },
-    { name: "project3", title: "Gita Bot", link: "Gita Bot" },
+    { name: "project3", title: "Gita Bot", link: "https://x.com/uworstfellow" },
     { name: "project4", title: "Price Finder", link: "Price Finder" },
   ];
   useEffect(() => {
@@ -109,7 +113,10 @@ const Game1 = () => {
           <Tooltip title={color.title} key={index}>
             <div
               style={{
-                cursor: index === 0 || index === 1 ? "pointer" : "default",
+                cursor:
+                  index === 0 || index === 1 || index === 2
+                    ? "pointer"
+                    : "default",
               }}
               key={index}
               ref={(el) => {
