@@ -54,6 +54,7 @@ const About = () => {
       "Freelancer 🌍",
       "Superjock 🏋️‍♂️",
       "Environmentalist 🌱",
+      "Type 1 Diabetic 💉"
     ];
     let index = 0;
     let charIndex = 0;
@@ -166,8 +167,7 @@ const About = () => {
             className={styles.aboutRatesText}
           >
             MIGA: If you have an idea which fixes <strong>INDIA's</strong>{" "}
-            problems like traffic, pollution etc using tech!
-            and restore the{" "}
+            problems like traffic, pollution etc using tech! and restore the{" "}
             <strong>
               <u>
                 {" "}
@@ -176,8 +176,7 @@ const About = () => {
                 </a>
               </u>
             </strong>{" "}
-            of India
-            , hit me up we can collaborate.✌️
+            of India , hit me up we can collaborate.✌️
           </Typography>
         </DialogContent>
         <DialogActions>
