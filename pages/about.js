@@ -54,7 +54,7 @@ const About = () => {
       "Freelancer 🌍",
       "Superjock 🏋️‍♂️",
       "Environmentalist 🌱",
-      "Type 1 Diabetic 💉"
+      "Type 1 Diabetic 💉",
     ];
     let index = 0;
     let charIndex = 0;
@@ -74,18 +74,18 @@ const About = () => {
 
       if (!isDeleting && charIndex < currentText.length) {
         charIndex++;
-        setTimeout(type, 50);
+        setTimeout(type, 25);
         // setTrackTime((prevTrackTime) => prevTrackTime + 50);
       } else if (isDeleting && charIndex > 0) {
         charIndex--;
-        setTimeout(type, 100);
+        setTimeout(type, 50);
         // setTrackTime((prevTrackTime) => prevTrackTime + 100);
       } else {
         isDeleting = !isDeleting;
         if (!isDeleting) {
           index = (index + 1) % texts.length;
         }
-        setTimeout(type, 1000);
+        setTimeout(type, 500);
         // setTrackTime((prevTrackTime) => prevTrackTime + 100);
       }
     };
