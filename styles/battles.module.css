@@ -67,7 +67,7 @@
 }
 .circleContainer {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin: 2rem 15px;
   grid-gap: 3rem;
 }
@@ -95,6 +95,58 @@
 }
 .project4 {
   background-image: url("../pages/images/logos/pricefinder.webp");
+}
+
+.project5 {
+  background-image: url("../pages/images/logos/snake.svg");
+  background-size: cover;
+}
+
+.project6 {
+  background-image: url("../pages/images/logos/spaceinvaders.svg");
+  background-size: cover;
+}
+
+.project7 {
+  background-image: url("../pages/images/logos/breakout.svg");
+  background-size: cover;
+}
+
+.project8 {
+  background-image: url("../pages/images/logos/2048.svg");
+  background-size: cover;
+}
+
+.project9 {
+  background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.project9::after {
+  content: "🌿";
+  font-size: 3rem;
+}
+
+.project10 {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.project10::after {
+  content: "🎵";
+  font-size: 3rem;
 }
 
 @media only screen and (max-width: 990px) {

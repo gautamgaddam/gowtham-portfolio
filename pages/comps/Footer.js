@@ -6,6 +6,8 @@ import {
   LinkedIn,
   Twitter,
   GitHub,
+  Spa,
+  MusicNote,
 } from "@mui/icons-material";
 import Link from "next/link";
 import XIcon from "@mui/icons-material/X";
@@ -43,6 +45,18 @@ const Footer = () => {
       name: "Battles",
       icon: <SportsScore />,
       id: 3,
+    },
+    {
+      route: "/health",
+      name: "Health",
+      icon: <Spa />,
+      id: 4,
+    },
+    {
+      route: "/music-studio",
+      name: "Studio",
+      icon: <MusicNote />,
+      id: 5,
     },
   ];
 

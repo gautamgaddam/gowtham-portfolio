@@ -1,95 +1,269 @@
 .tetrisBody {
   display: flex;
+  flex: 1;
   justify-content: center;
   align-items: center;
-  height: 600px;
-  margin: 0;
-  background-color: #333;
-  color: #fff;
-  font-family: Arial, sans-serif;
+  padding: 16px;
+  background: transparent;
+  overflow: hidden;
 }
 
-.gameContainer {
-  height: 100%;
+.gameWrap {
   display: flex;
+  gap: 16px;
+  align-items: center;
+  height: 100%;
+}
+
+/* ── Main canvas ─────────────────────────────────────────────────────────── */
+
+.canvasWrap {
   position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 0 30px rgba(0, 212, 255, 0.08),
+    0 0 80px rgba(0, 212, 255, 0.03);
 }
 
 .gameCanvas {
-  border: 1px solid black;
-  box-shadow: 1px 4px 8px rgba(0, 0, 0, 0.5);
-
-  height: 100%;
+  display: block;
+  /* Scale canvas to fill dialog height while keeping aspect ratio */
+  height: calc(90vh - 80px);
+  width: auto;
+  max-height: 820px;
 }
 
-.controls {
-  margin-top: 20px;
-  right: 0px;
+/* ── Game Over overlay ───────────────────────────────────────────────────── */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  animation: fadeIn 0.35s ease;
+}
+
+.overlayContent {
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 24px;
 }
 
-.controls button {
-  margin: 0 10px;
+.gameOverTitle {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #ef5350;
+  text-shadow: 0 0 24px rgba(239, 83, 80, 0.9);
+  margin: 0 0 4px;
+  animation: pulsate 1.2s ease-in-out infinite;
 }
-.buttonTetris {
+
+.gameOverStat {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  color: #94a3b8;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.restartBtn {
+  margin-top: 12px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #00e676, #00843d);
   color: #000;
   border: none;
-  padding: 10px 20px;
-  margin: 5px;
+  padding: 11px 20px;
   cursor: pointer;
-  font-family: "Press Start 2P", cursive;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
-  border-radius: 5px;
-  width: 100px;
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(0, 230, 118, 0.45);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 
-.buttonTetris:hover {
-  background-color: #ccc;
+.restartBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(0, 230, 118, 0.7);
 }
 
-.buttonTetris :disabled {
-  background-color: #555;
-  cursor: not-allowed;
+/* ── Side panel ──────────────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 130px;
+  padding-top: 2px;
 }
-.scoreDisplay {
+
+.panelBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 8px 6px;
+}
+
+.panelLabel {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.nextCanvas {
+  display: block;
+  border-radius: 4px;
+}
+
+.scoreValue {
+  font-family: "Courier New", Courier, monospace;
   font-size: 20px;
-  margin-bottom: 10px;
-  padding: 10px 20px;
-  background-color: #222;
-  border: 2px solid #fff;
-  border-radius: 5px;
+  font-weight: 700;
+  color: #ffd600;
+  text-shadow: 0 0 12px rgba(255, 214, 0, 0.75);
+  letter-spacing: 1px;
+  word-break: break-all;
   text-align: center;
-  width: 100px;
 }
+
+.levelValue {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: #ce93d8;
+  text-shadow: 0 0 14px rgba(206, 147, 216, 0.85);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.btnGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.btnStart,
+.btnPause {
+  width: 100%;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  border: none;
+  padding: 15px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.btnStart {
+  background: linear-gradient(135deg, #00e676, #00843d);
+  color: #000;
+  box-shadow: 0 0 12px rgba(0, 230, 118, 0.3);
+}
+
+.btnStart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 22px rgba(0, 230, 118, 0.65);
+}
+
+.btnPause {
+  background: linear-gradient(135deg, #4f7cf7, #2b4bcc);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(79, 124, 247, 0.3);
+}
+
+.btnPause:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 22px rgba(79, 124, 247, 0.65);
+}
+
+/* ── Controls hint ───────────────────────────────────────────────────────── */
+
+.hints {
+  border-radius: 8px;
+  padding: 8px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.hints div {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 8px;
+  color: #475569;
+  line-height: 2;
+  text-align: center;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulsate {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
 @media only screen and (max-width: 768px) {
   .tetrisBody {
-    height: auto;
+    padding: 8px 6px;
+    min-height: auto;
   }
-  .controls {
-    position: fixed;
 
-    flex-direction: column;
+  .gameWrap {
+    gap: 6px;
+  }
 
-    align-items: flex-end;
-    gap: 5px;
+  .panel {
+    width: 80px;
   }
-  .gameCanvas {
-    width: 70vw;
+
+  .scoreValue {
+    font-size: 12px;
   }
-  .scoreDisplay {
-    padding: 5px;
-    font-size: 15px;
-    margin: 0px;
-    border: 1px solid orange;
-    width: 65px;
+
+  .levelValue {
+    font-size: 18px;
   }
-  .buttonTetris {
-    margin: 0px !important;
-    padding: 5px;
-    width: 65px;
+
+  .hints {
+    display: none;
   }
 }
