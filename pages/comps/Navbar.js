@@ -35,6 +35,12 @@ const Navbar = () => {
       <Link href="/battles" passHref>
         <Box sx={{ my: 2 }}>Battles</Box>
       </Link>
+      <Link href="/health" passHref>
+        <Box sx={{ my: 2 }}>Health</Box>
+      </Link>
+      <Link href="/music-studio" passHref>
+        <Box sx={{ my: 2 }}>Studio</Box>
+      </Link>
       {/* <Link href="/#contact" passHref>
         <Box sx={{ my: 2 }}>Contact</Box>
       </Link> */}
@@ -91,6 +97,8 @@ const Navbar = () => {
             <Link href="/">About</Link>
             <Link href="/#skills">Inventory</Link>
             <Link href="/battles">Battles</Link>
+            <Link href="/health">Health</Link>
+            <Link href="/music-studio">Studio</Link>
             <Link href="/#contact">Contact</Link>
             {/* <Link
               href="../resume/gowtham_cv.pdf"

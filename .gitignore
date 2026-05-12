@@ -1,5 +1,8 @@
 node_modules
 
+# Environment variables (contains API keys)
+.env.local
+.env*.local
 
 .next
 

@@ -1,0 +1,104 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #000008 0%, #0a0a20 100%);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.gameWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 10px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.value {
+  font-family: "Courier New", monospace;
+  font-size: 28px;
+  color: #00d4ff;
+  font-weight: bold;
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+  min-width: 60px;
+  text-align: center;
+}
+
+.canvas {
+  border: 2px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  box-shadow:
+    0 0 40px rgba(0, 212, 255, 0.15),
+    0 8px 32px rgba(0, 0, 0, 0.6);
+  background: #000008;
+  display: block;
+}
+
+.controls {
+  margin-top: 10px;
+}
+
+.controlText {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  .gameWrapper {
+    gap: 15px;
+    transform: scale(0.75);
+  }
+
+  .header {
+    gap: 30px;
+  }
+
+  .value {
+    font-size: 24px;
+  }
+
+  .controlText {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 600px) {
+  .gameWrapper {
+    transform: scale(0.6);
+  }
+
+  .header {
+    gap: 20px;
+  }
+}

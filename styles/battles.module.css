@@ -67,7 +67,7 @@
 }
 .circleContainer {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin: 2rem 15px;
   grid-gap: 3rem;
 }
@@ -88,13 +88,55 @@
 }
 
 .project2 {
-  background-image: url("../pages/images/logos/tradesense.webp");
+  background-image: url("../pages/images/logos/snake.svg");
+  background-size: cover;
 }
+
 .project3 {
-  background-image: url("../pages/images/logos/gitbot.webp");
+  background-image: url("../pages/images/logos/spaceinvaders.svg");
+  background-size: cover;
 }
+
 .project4 {
-  background-image: url("../pages/images/logos/pricefinder.webp");
+  background-image: url("../pages/images/logos/breakout.svg");
+  background-size: cover;
+}
+
+.project5 {
+  background-image: url("../pages/images/logos/2048.svg");
+  background-size: cover;
+}
+
+.project6 {
+  background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.project6::after {
+  content: "🌿";
+  font-size: 3rem;
+}
+
+.project7 {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.project7::after {
+  content: "🎵";
+  font-size: 3rem;
 }
 
 @media only screen and (max-width: 990px) {
