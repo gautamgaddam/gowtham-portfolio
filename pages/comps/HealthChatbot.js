@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Box, TextField, IconButton, Typography, Chip } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import InfoIcon from "@mui/icons-material/Info";
 import SpaIcon from "@mui/icons-material/Spa";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
@@ -19,14 +20,185 @@ const SUGGESTED_PROMPTS = [
   "Tell me about breathwork for better sleep",
 ];
 
+// Format message content with markdown-style formatting
+const FormattedMessage = ({ content }) => {
+  if (!content) return null;
+
+  const formatText = (text) => {
+    const lines = text.split('\n');
+    const elements = [];
+    let currentList = null;
+    let currentListType = null;
+
+    lines.forEach((line, lineIndex) => {
+      // Skip empty lines between elements but preserve them within text
+      if (!line.trim()) {
+        if (currentList) {
+          elements.push(currentList);
+          currentList = null;
+          currentListType = null;
+        }
+        elements.push(<br key={`br-${lineIndex}`} />);
+        return;
+      }
+
+      // Check for numbered list (1. 2. 3. etc.)
+      const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+      if (numberedMatch) {
+        const content = formatInlineText(numberedMatch[2]);
+        if (currentListType !== 'ol') {
+          if (currentList) {
+            elements.push(currentList);
+          }
+          currentList = { type: 'ol', items: [] };
+          currentListType = 'ol';
+        }
+        currentList.items.push(<li key={`li-${lineIndex}`}>{content}</li>);
+        return;
+      }
+
+      // Check for bullet points (-, *, or •)
+      const bulletMatch = line.match(/^[\-\*•]\s+(.+)/);
+      if (bulletMatch) {
+        const content = formatInlineText(bulletMatch[1]);
+        if (currentListType !== 'ul') {
+          if (currentList) {
+            elements.push(currentList);
+          }
+          currentList = { type: 'ul', items: [] };
+          currentListType = 'ul';
+        }
+        currentList.items.push(<li key={`li-${lineIndex}`}>{content}</li>);
+        return;
+      }
+
+      // Close any open list
+      if (currentList) {
+        elements.push(currentList);
+        currentList = null;
+        currentListType = null;
+      }
+
+      // Check for headers (##)
+      const headerMatch = line.match(/^(#{1,3})\s+(.+)/);
+      if (headerMatch) {
+        const level = headerMatch[1].length;
+        const content = formatInlineText(headerMatch[2]);
+        elements.push(
+          <Typography 
+            key={`h-${lineIndex}`} 
+            variant={`h${Math.min(level + 4, 6)}`}
+            sx={{ fontWeight: 700, mt: 1.5, mb: 0.5 }}
+          >
+            {content}
+          </Typography>
+        );
+        return;
+      }
+
+      // Regular text with inline formatting
+      elements.push(
+        <Typography 
+          key={`p-${lineIndex}`} 
+          component="div" 
+          sx={{ mb: 0.5, lineHeight: 1.6 }}
+        >
+          {formatInlineText(line)}
+        </Typography>
+      );
+    });
+
+    // Don't forget to push any remaining list
+    if (currentList) {
+      elements.push(currentList);
+    }
+
+    // Convert list objects to JSX
+    return elements.map((el, idx) => {
+      if (el && el.type === 'ol') {
+        return (
+          <Box 
+            component="ol" 
+            key={`ol-${idx}`}
+            sx={{ 
+              pl: 2.5, 
+              my: 1,
+              '& li': { 
+                mb: 0.5,
+                lineHeight: 1.6 
+              } 
+            }}
+          >
+            {el.items}
+          </Box>
+        );
+      }
+      if (el && el.type === 'ul') {
+        return (
+          <Box 
+            component="ul" 
+            key={`ul-${idx}`}
+            sx={{ 
+              pl: 2.5, 
+              my: 1,
+              '& li': { 
+                mb: 0.5,
+                lineHeight: 1.6 
+              } 
+            }}
+          >
+            {el.items}
+          </Box>
+        );
+      }
+      return el;
+    });
+  };
+
+  // Format inline text (bold, italic, etc.)
+  const formatInlineText = (text) => {
+    const parts = [];
+    let lastIndex = 0;
+    
+    // Match **bold** text
+    const boldRegex = /\*\*(.+?)\*\*/g;
+    let match;
+    
+    while ((match = boldRegex.exec(text)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+      // Add bold text
+      parts.push(
+        <strong key={`b-${match.index}`} style={{ fontWeight: 700 }}>
+          {match[1]}
+        </strong>
+      );
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : text;
+  };
+
+  return <Box className={styles.formattedContent}>{formatText(content)}</Box>;
+};
+
 const HealthChatbot = () => {
   const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const containerRef = useRef(null);
+  const disclaimerRef = useRef(null);
 
   // Load chat history on mount
   useEffect(() => {
@@ -70,6 +242,90 @@ const HealthChatbot = () => {
       });
     }
   }, []);
+
+  // Disclaimer popup animation on mount
+  useEffect(() => {
+    // Show disclaimer after a brief delay
+    const showTimer = setTimeout(() => {
+      setShowDisclaimer(true);
+      
+      // Animate in with cracker blast effect
+      if (disclaimerRef.current) {
+        gsap.fromTo(
+          disclaimerRef.current,
+          {
+            scale: 0,
+            rotation: -180,
+            opacity: 0,
+          },
+          {
+            scale: 1,
+            rotation: 0,
+            opacity: 1,
+            duration: 0.6,
+            ease: "back.out(2)",
+          }
+        );
+      }
+    }, 500);
+
+    // Auto-hide after 5 seconds with blast effect
+    const hideTimer = setTimeout(() => {
+      if (disclaimerRef.current) {
+        gsap.to(disclaimerRef.current, {
+          scale: 0,
+          rotation: 180,
+          opacity: 0,
+          duration: 0.4,
+          ease: "back.in(2)",
+          onComplete: () => setShowDisclaimer(false),
+        });
+      }
+    }, 5500);
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+
+  const toggleDisclaimer = () => {
+    if (showDisclaimer) {
+      // Hide with animation
+      if (disclaimerRef.current) {
+        gsap.to(disclaimerRef.current, {
+          scale: 0,
+          rotation: 180,
+          opacity: 0,
+          duration: 0.4,
+          ease: "back.in(2)",
+          onComplete: () => setShowDisclaimer(false),
+        });
+      }
+    } else {
+      // Show with animation
+      setShowDisclaimer(true);
+      setTimeout(() => {
+        if (disclaimerRef.current) {
+          gsap.fromTo(
+            disclaimerRef.current,
+            {
+              scale: 0,
+              rotation: -180,
+              opacity: 0,
+            },
+            {
+              scale: 1,
+              rotation: 0,
+              opacity: 1,
+              duration: 0.6,
+              ease: "back.out(2)",
+            }
+          );
+        }
+      }, 10);
+    }
+  };
 
   const sendMessage = async (messageText) => {
     const text = messageText || inputValue.trim();
@@ -178,13 +434,27 @@ const HealthChatbot = () => {
 
   return (
     <Box ref={containerRef} className={styles.chatContainer}>
-      {/* Disclaimer Banner */}
-      <Box className={styles.disclaimerBanner}>
-        <WarningAmberIcon />
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          Educational purposes only. Not a substitute for professional medical
-          advice. Always consult a healthcare provider.
-        </Typography>
+      {/* Disclaimer Info Icon with Tooltip */}
+      <Box className={styles.disclaimerIconContainer}>
+        <IconButton
+          onClick={toggleDisclaimer}
+          className={styles.disclaimerIcon}
+          sx={{
+            color: theme.palette.mode === "dark" ? "#ff6b35" : "#f7931e",
+          }}
+        >
+          <InfoIcon fontSize="large" />
+        </IconButton>
+        
+        {showDisclaimer && (
+          <Box ref={disclaimerRef} className={styles.disclaimerTooltip}>
+            <WarningAmberIcon />
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Educational purposes only. Not a substitute for professional
+              medical advice. Always consult a healthcare provider.
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* Chat Header */}
@@ -234,7 +504,13 @@ const HealthChatbot = () => {
                   msg.role === "user" ? styles.userContent : styles.botContent
                 }`}
               >
-                {msg.content || (
+                {msg.content ? (
+                  msg.role === "assistant" ? (
+                    <FormattedMessage content={msg.content} />
+                  ) : (
+                    msg.content
+                  )
+                ) : (
                   <Box className={styles.typingIndicator}>
                     <Box className={styles.typingDot} />
                     <Box className={styles.typingDot} />

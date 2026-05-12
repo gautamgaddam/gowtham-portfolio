@@ -26,14 +26,20 @@ async function getAccessToken() {
   }
 
   try {
+    console.log("Attempting to get Spotify access token...");
+    console.log("Client ID exists:", !!process.env.SPOTIFY_CLIENT_ID);
+    console.log("Client Secret exists:", !!process.env.SPOTIFY_CLIENT_SECRET);
+    
     const data = await spotifyApi.clientCredentialsGrant();
     tokenCache.accessToken = data.body.access_token;
     tokenCache.expiresAt = now + data.body.expires_in * 1000;
 
     spotifyApi.setAccessToken(tokenCache.accessToken);
+    console.log("Successfully obtained Spotify access token");
     return tokenCache.accessToken;
   } catch (error) {
     console.error("Error getting Spotify access token:", error);
+    console.error("Error details:", error.body);
     throw new Error("Failed to authenticate with Spotify");
   }
 }
@@ -185,11 +191,14 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Spotify analysis API error:", error);
+    console.error("Error status code:", error.statusCode);
+    console.error("Error body:", error.body);
 
-    if (error.statusCode === 401) {
+    if (error.statusCode === 401 || error.statusCode === 403) {
       return res.status(500).json({
         error:
-          "Spotify authentication failed. Please check server configuration.",
+          "Spotify authentication failed. Please check your API credentials in the Spotify Developer Dashboard.",
+        details: error.body?.error?.message || "Forbidden or Unauthorized",
       });
     }
 
@@ -201,6 +210,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       error: "An error occurred analyzing the artist",
+      details: error.message,
     });
   }
 }

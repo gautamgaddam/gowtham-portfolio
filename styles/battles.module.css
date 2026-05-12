@@ -88,36 +88,26 @@
 }
 
 .project2 {
-  background-image: url("../pages/images/logos/tradesense.webp");
-}
-.project3 {
-  background-image: url("../pages/images/logos/gitbot.webp");
-}
-.project4 {
-  background-image: url("../pages/images/logos/pricefinder.webp");
-}
-
-.project5 {
   background-image: url("../pages/images/logos/snake.svg");
   background-size: cover;
 }
 
-.project6 {
+.project3 {
   background-image: url("../pages/images/logos/spaceinvaders.svg");
   background-size: cover;
 }
 
-.project7 {
+.project4 {
   background-image: url("../pages/images/logos/breakout.svg");
   background-size: cover;
 }
 
-.project8 {
+.project5 {
   background-image: url("../pages/images/logos/2048.svg");
   background-size: cover;
 }
 
-.project9 {
+.project6 {
   background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
   background-size: cover;
   display: flex;
@@ -128,12 +118,12 @@
   color: #1a1a1a;
 }
 
-.project9::after {
+.project6::after {
   content: "🌿";
   font-size: 3rem;
 }
 
-.project10 {
+.project7 {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   background-size: cover;
   display: flex;
@@ -144,7 +134,7 @@
   color: #fff;
 }
 
-.project10::after {
+.project7::after {
   content: "🎵";
   font-size: 3rem;
 }

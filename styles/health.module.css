@@ -13,22 +13,56 @@
   overflow: hidden;
 }
 
-.disclaimerBanner {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  color: #1a1a1a;
-  padding: 12px 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-align: center;
-  border-bottom: 2px solid #000;
+.disclaimerIconContainer {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-start;
+  padding: 10px 20px;
+  background-color: #0d0d0d;
 }
 
-.disclaimerBanner svg {
-  font-size: 1.2rem;
+.disclaimerIcon {
+  z-index: 10;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.disclaimerIcon:hover {
+  transform: scale(1.1);
+}
+
+.disclaimerTooltip {
+  position: absolute;
+  top: 60px;
+  left: 20px;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: #1a1a1a;
+  padding: 16px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 3px solid #000;
+  box-shadow: 8px 8px #000, 0 0 30px rgba(255, 107, 53, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+  z-index: 9;
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.disclaimerTooltip svg {
+  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
 .chatHeader {
@@ -272,9 +306,16 @@
     font-size: 1.3rem;
   }
 
-  .disclaimerBanner {
+  .disclaimerTooltip {
+    max-width: calc(100vw - 80px);
+    right: 10px;
+    top: 55px;
     font-size: 0.75rem;
-    padding: 10px 15px;
+    padding: 12px 15px;
+  }
+
+  .disclaimerIconContainer {
+    padding: 8px 15px;
   }
 
   .messageContent {
@@ -304,4 +345,43 @@
   .suggestionChips {
     flex-direction: column;
   }
+}
+
+/* Formatted message content styles */
+.formattedContent {
+  width: 100%;
+}
+
+.formattedContent strong {
+  font-weight: 700;
+  color: #00e676;
+}
+
+.formattedContent ol,
+.formattedContent ul {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.formattedContent li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.formattedContent ol li {
+  list-style-type: decimal;
+}
+
+.formattedContent ul li {
+  list-style-type: disc;
+}
+
+.formattedContent p {
+  margin: 4px 0;
+}
+
+.formattedContent br {
+  display: block;
+  content: "";
+  margin: 4px 0;
 }

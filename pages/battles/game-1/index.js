@@ -47,14 +47,6 @@ const Game1 = () => {
     } else if (color?.title === "2048") {
       setOpen(true);
       setActiveGame("2048");
-    } else if (color?.title === "TradeSense") {
-      const url = "";
-      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (newWindow) newWindow.opener = null;
-    } else if (color?.title === "Gita Bot") {
-      const url = color.link;
-      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (newWindow) newWindow.opener = null;
     } else if (color?.title === "Health Chatbot") {
       router.push("/health");
     } else if (color?.title === "Music Studio") {
@@ -82,19 +74,12 @@ const Game1 = () => {
 
   const projects = [
     { name: "project1", title: "Tetris", link: "Tetris" },
-    {
-      name: "project2",
-      title: "TradeSense",
-      link: "https://tradesense.streamlit.app/",
-    },
-    { name: "project3", title: "Gita Bot", link: "https://x.com/uworstfellow" },
-    { name: "project4", title: "Price Finder", link: "Price Finder" },
-    { name: "project5", title: "Snake", link: "Snake" },
-    { name: "project6", title: "Space Invaders", link: "Space Invaders" },
-    { name: "project7", title: "Breakout", link: "Breakout" },
-    { name: "project8", title: "2048", link: "2048" },
-    { name: "project9", title: "Health Chatbot", link: "/health" },
-    { name: "project10", title: "Music Studio", link: "/music-studio" },
+    { name: "project2", title: "Snake", link: "Snake" },
+    { name: "project3", title: "Space Invaders", link: "Space Invaders" },
+    { name: "project4", title: "Breakout", link: "Breakout" },
+    { name: "project5", title: "2048", link: "2048" },
+    { name: "project6", title: "Health Chatbot", link: "/health" },
+    { name: "project7", title: "Music Studio", link: "/music-studio" },
   ];
   useEffect(() => {
     circlesRef.current.forEach((circle, index) => {
@@ -142,18 +127,7 @@ const Game1 = () => {
           <Tooltip title={color.title} key={index}>
             <div
               style={{
-                cursor:
-                  index === 0 ||
-                  index === 1 ||
-                  index === 2 ||
-                  index === 4 ||
-                  index === 5 ||
-                  index === 6 ||
-                  index === 7 ||
-                  index === 8 ||
-                  index === 9
-                    ? "pointer"
-                    : "default",
+                cursor: "pointer",
               }}
               key={index}
               ref={(el) => {
@@ -170,10 +144,11 @@ const Game1 = () => {
         align="left"
         gutterBottom
         className={styles.formSubTitle}
+        style={{ display: 'none' }}
       >
         Corporate
       </Typography>
-      <div className={styles.circleContainer}>
+      <div className={styles.circleContainer} style={{ display: 'none' }}>
         {colors.map((color, index) => (
           <Tooltip title={color.title}>
             <div
