@@ -42,7 +42,9 @@
   font-weight: 600;
   border-radius: 12px;
   border: 3px solid #000;
-  box-shadow: 8px 8px #000, 0 0 30px rgba(255, 107, 53, 0.5);
+  box-shadow:
+    8px 8px #000,
+    0 0 30px rgba(255, 107, 53, 0.5);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -52,7 +54,8 @@
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -384,4 +387,304 @@
   display: block;
   content: "";
   margin: 4px 0;
+}
+
+/* Personalization Modal Styles */
+.personalizationModal {
+  width: 90%;
+  max-width: 700px;
+  padding: 0;
+  border: 4px solid #000;
+  border-radius: 10px;
+  box-shadow: 12px 12px #000;
+}
+
+.modalTitle {
+  background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+  color: #1a1a1a;
+  padding: 20px;
+  margin: 0;
+  font-weight: 900;
+  border-bottom: 3px solid #000;
+}
+
+.modalContent {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chipContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chipSelected {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.chipUnselected {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 2px solid #333;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.saveButton {
+  font-weight: 700 !important;
+  box-shadow: 4px 4px #000 !important;
+  transition: all 0.2s ease !important;
+}
+
+.saveButton:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px #000 !important;
+}
+
+/* Safety Alert Box Styles */
+.safetyAlertCaution {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  background-color: #fff3e0;
+  border: 3px solid #ff9800;
+  border-radius: 8px;
+  box-shadow: 4px 4px #000;
+}
+
+.safetyAlertEmergency {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  background-color: #ffebee;
+  border: 3px solid #f44336;
+  border-radius: 8px;
+  box-shadow: 4px 4px #000;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 4px 4px #000;
+  }
+  50% {
+    box-shadow:
+      4px 4px #000,
+      0 0 20px rgba(244, 67, 54, 0.6);
+  }
+}
+
+.safetyAlertContraindication {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  background-color: #ffcdd2;
+  border: 3px solid #d32f2f;
+  border-radius: 8px;
+  box-shadow: 4px 4px #000;
+}
+
+.safetyAlertSafe {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  background-color: #e8f5e9;
+  border: 3px solid #4caf50;
+  border-radius: 8px;
+  box-shadow: 4px 4px #000;
+}
+
+.alertIcon {
+  font-size: 1.5rem !important;
+  flex-shrink: 0;
+}
+
+.safetyAlertCaution .alertIcon {
+  color: #ff9800;
+}
+
+.safetyAlertEmergency .alertIcon {
+  color: #f44336;
+}
+
+.safetyAlertContraindication .alertIcon {
+  color: #d32f2f;
+}
+
+.safetyAlertSafe .alertIcon {
+  color: #4caf50;
+}
+
+.alertText {
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.safetyAlertCaution .alertText {
+  color: #e65100;
+}
+
+.safetyAlertEmergency .alertText {
+  color: #b71c1c;
+}
+
+.safetyAlertContraindication .alertText {
+  color: #b71c1c;
+}
+
+.safetyAlertSafe .alertText {
+  color: #2e7d32;
+}
+
+/* Quick Actions Bar Styles */
+.quickActionsBar {
+  display: flex;
+  gap: 10px;
+  padding: 15px 20px;
+  background-color: #1a1a1a;
+  border-top: 2px solid #333;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.quickActionButton {
+  background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%) !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+  box-shadow: 3px 3px #000 !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  transition: all 0.2s ease !important;
+  text-transform: none !important;
+}
+
+.quickActionButton:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 5px 5px #000 !important;
+  background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%) !important;
+}
+
+.quickActionButton:disabled {
+  background: #333 !important;
+  color: #666 !important;
+  cursor: not-allowed !important;
+  box-shadow: 2px 2px #000 !important;
+}
+
+/* Action Buttons (Edit, Export, Clear) */
+.actionButton {
+  transition: all 0.2s ease !important;
+}
+
+.actionButton:hover {
+  transform: scale(1.1) !important;
+}
+
+/* Mobile responsive updates */
+@media only screen and (max-width: 768px) {
+  .personalizationModal {
+    width: 95%;
+    max-height: 85vh;
+  }
+
+  .modalTitle {
+    font-size: 1.3rem;
+    padding: 15px;
+  }
+
+  .modalContent {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .quickActionsBar {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .quickActionButton {
+    font-size: 0.8rem !important;
+    padding: 6px 12px !important;
+  }
+
+  .safetyAlertCaution,
+  .safetyAlertEmergency,
+  .safetyAlertContraindication,
+  .safetyAlertSafe {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .alertIcon {
+    font-size: 1.2rem !important;
+  }
+
+  .alertText {
+    font-size: 0.85rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* NEW PHASE 3 COMPONENT STYLES */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Audio Library Styles */
+.audioLibrary {
+  animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Supplement Checker Styles */
+.supplementChecker {
+  animation: slideInUp 0.5s ease-out;
+}
+
+/* Progress Tracker Styles */
+.progressTracker {
+  animation: slideInUp 0.5s ease-out;
+}
+
+/* Mobile responsive for new components */
+@media only screen and (max-width: 768px) {
+  .audioLibrary,
+  .supplementChecker,
+  .progressTracker {
+    padding: 15px;
+  }
 }

@@ -19,6 +19,7 @@ import Snake from "../../comps/Snake";
 import SpaceInvaders from "../../comps/SpaceInvaders";
 import Breakout from "../../comps/Breakout";
 import Game2048 from "../../comps/Game2048";
+import Pong from "../../comps/Pong";
 import styles from "../../../styles/battles.module.css";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -47,6 +48,9 @@ const Game1 = () => {
     } else if (color?.title === "2048") {
       setOpen(true);
       setActiveGame("2048");
+    } else if (color?.title === "Pong") {
+      setOpen(true);
+      setActiveGame("Pong");
     } else if (color?.title === "Health Chatbot") {
       router.push("/health");
     } else if (color?.title === "Music Studio") {
@@ -78,8 +82,9 @@ const Game1 = () => {
     { name: "project3", title: "Space Invaders", link: "Space Invaders" },
     { name: "project4", title: "Breakout", link: "Breakout" },
     { name: "project5", title: "2048", link: "2048" },
-    { name: "project6", title: "Health Chatbot", link: "/health" },
-    { name: "project7", title: "Music Studio", link: "/music-studio" },
+    { name: "project6", title: "Pong", link: "Pong" },
+    { name: "project7", title: "Health Chatbot", link: "/health" },
+    { name: "project8", title: "Music Studio", link: "/music-studio" },
   ];
   useEffect(() => {
     circlesRef.current.forEach((circle, index) => {
@@ -144,11 +149,11 @@ const Game1 = () => {
         align="left"
         gutterBottom
         className={styles.formSubTitle}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       >
         Corporate
       </Typography>
-      <div className={styles.circleContainer} style={{ display: 'none' }}>
+      <div className={styles.circleContainer} style={{ display: "none" }}>
         {colors.map((color, index) => (
           <Tooltip title={color.title}>
             <div
@@ -219,6 +224,7 @@ const Game1 = () => {
           {open && activeGame === "Space Invaders" && <SpaceInvaders />}
           {open && activeGame === "Breakout" && <Breakout />}
           {open && activeGame === "2048" && <Game2048 />}
+          {open && activeGame === "Pong" && <Pong />}
         </DialogContent>
       </Dialog>
     </>
