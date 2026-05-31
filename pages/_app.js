@@ -15,6 +15,7 @@ import "../styles/globals.css";
 import FavIcon from "../public/favicon_io/favicon-32x32.png";
 import { useRouter } from "next/router";
 import { GoogleAnalytics } from "nextjs-google-analytics";
+import { AuthProvider } from "../lib/auth-context";
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
 
@@ -66,20 +67,25 @@ export default function MyApp(props) {
           </div>
         </div>
       ) : (
-        <ColorModeContext.Provider
-          value={{ darkMode, setDarkMode: _setDarkMode }}
-        >
-          {/* darkMode ? darkTheme : theme */}
-          <ThemeProvider theme={darkTheme}>
-            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+        <AuthProvider>
+          <ColorModeContext.Provider
+            value={{ darkMode, setDarkMode: _setDarkMode }}
+          >
+            {/* darkMode ? darkTheme : theme */}
+            <ThemeProvider theme={darkTheme}>
+              {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
 
-            <CssBaseline />
-            <Layout>
-              <GoogleAnalytics trackPageViews gaMeasurementId="G-2HSBG697FV" />
-              <Component {...pageProps} />
-            </Layout>
-          </ThemeProvider>
-        </ColorModeContext.Provider>
+              <CssBaseline />
+              <Layout>
+                <GoogleAnalytics
+                  trackPageViews
+                  gaMeasurementId="G-2HSBG697FV"
+                />
+                <Component {...pageProps} />
+              </Layout>
+            </ThemeProvider>
+          </ColorModeContext.Provider>
+        </AuthProvider>
       )}
     </CacheProvider>
   );

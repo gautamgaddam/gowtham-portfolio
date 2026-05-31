@@ -8,6 +8,7 @@ import {
   GitHub,
   Spa,
   MusicNote,
+  Star,
 } from "@mui/icons-material";
 import Link from "next/link";
 import XIcon from "@mui/icons-material/X";
@@ -57,6 +58,12 @@ const Footer = () => {
       name: "Studio",
       icon: <MusicNote />,
       id: 5,
+    },
+    {
+      route: "/pricing",
+      name: "Pricing",
+      icon: <Star />,
+      id: 6,
     },
   ];
 
