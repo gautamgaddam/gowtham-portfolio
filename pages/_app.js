@@ -6,7 +6,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { CacheProvider } from "@emotion/react";
 import theme from "../styles/theme";
 import createEmotionCache from "../styles/createEmotionCache";
-import Layout from "./comps/Layout";
+import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import { CircularProgress, LinearProgress, useMediaQuery } from "@mui/material";
 import darkTheme from "../styles/darkTheme";

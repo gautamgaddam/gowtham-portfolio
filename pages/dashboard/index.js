@@ -25,6 +25,11 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
+import {
+  getEffectiveSubscriptionTier,
+  hasFullAccess,
+  hasPaidFeatureAccess,
+} from "../../lib/access";
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -61,6 +66,9 @@ export default function Dashboard() {
     pro: "primary",
     premium: "success",
   };
+  const effectiveTier = getEffectiveSubscriptionTier(user, profile);
+  const hasPremiumOverride = hasFullAccess(user, profile);
+  const hasProAccess = hasPaidFeatureAccess(user, profile);
 
   return (
     <Box
@@ -105,10 +113,12 @@ export default function Dashboard() {
               <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                 <Typography variant="body1">@{profile.username}</Typography>
                 <Chip
-                  label={profile.subscription_tier?.toUpperCase() || "FREE"}
-                  color={
-                    subscriptionColor[profile.subscription_tier] || "default"
+                  label={
+                    hasPremiumOverride
+                      ? "FULL ACCESS"
+                      : effectiveTier.toUpperCase()
                   }
+                  color={subscriptionColor[effectiveTier] || "default"}
                   size="small"
                   sx={{ fontWeight: "bold" }}
                 />
@@ -214,18 +224,8 @@ export default function Dashboard() {
                   and tracking.
                 </Typography>
                 <Chip
-                  label={
-                    profile.subscription_tier === "premium" ||
-                    profile.subscription_tier === "pro"
-                      ? "Unlocked"
-                      : "Pro/Premium"
-                  }
-                  color={
-                    profile.subscription_tier === "premium" ||
-                    profile.subscription_tier === "pro"
-                      ? "success"
-                      : "warning"
-                  }
+                  label={hasProAccess ? "Unlocked" : "Pro/Premium"}
+                  color={hasProAccess ? "success" : "warning"}
                   size="small"
                 />
               </CardContent>
@@ -235,7 +235,7 @@ export default function Dashboard() {
                     fullWidth
                     variant="contained"
                     startIcon={<HealthAndSafety />}
-                    disabled={profile.subscription_tier === "free"}
+                    disabled={!hasProAccess}
                     sx={{
                       background:
                         "linear-gradient(135deg, #f44336 0%, #d32f2f 100%)",
@@ -283,18 +283,8 @@ export default function Dashboard() {
                   Create AI-powered music with custom styles, keys, and tempo.
                 </Typography>
                 <Chip
-                  label={
-                    profile.subscription_tier === "premium" ||
-                    profile.subscription_tier === "pro"
-                      ? "Unlocked"
-                      : "Pro/Premium"
-                  }
-                  color={
-                    profile.subscription_tier === "premium" ||
-                    profile.subscription_tier === "pro"
-                      ? "success"
-                      : "warning"
-                  }
+                  label={hasProAccess ? "Unlocked" : "Pro/Premium"}
+                  color={hasProAccess ? "success" : "warning"}
                   size="small"
                 />
               </CardContent>
@@ -304,7 +294,7 @@ export default function Dashboard() {
                     fullWidth
                     variant="contained"
                     startIcon={<MusicNote />}
-                    disabled={profile.subscription_tier === "free"}
+                    disabled={!hasProAccess}
                     sx={{
                       background:
                         "linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)",
@@ -370,7 +360,7 @@ export default function Dashboard() {
           </Grid>
 
           {/* Upgrade CTA (if free tier) */}
-          {profile.subscription_tier === "free" && (
+          {!hasProAccess && (
             <Grid item xs={12} md={6}>
               <Card
                 sx={{

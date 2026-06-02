@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import styles from "../../styles/game2048.module.css";
+import styles from "../styles/game2048.module.css";
 import { drawGlowText } from "./gameUtils";
 
 const GRID_SIZE = 4;

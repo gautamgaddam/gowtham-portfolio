@@ -1,0 +1,82 @@
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+export const config = {
+  runtime: "nodejs",
+};
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
+
+// Helper to extract user from JWT token
+async function getUserFromToken(req) {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token || !supabaseAdmin) return null;
+
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error) return null;
+  return user;
+}
+
+export default async function handler(req, res) {
+  if (!supabaseAdmin) {
+    return res.status(500).json({ error: "Database not configured" });
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    // Authenticate user
+    const user = await getUserFromToken(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { query, limit = 5, threshold = 0.7 } = req.body;
+
+    // Validate inputs
+    if (!query) {
+      return res.status(400).json({ error: "Missing required field: query" });
+    }
+
+    // Generate embedding for the query
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: query,
+    });
+
+    const queryEmbedding = embeddingResponse.data[0].embedding;
+
+    // Call the RPC function to search
+    const { data: results, error } = await supabaseAdmin.rpc(
+      "match_health_knowledge",
+      {
+        query_embedding: queryEmbedding,
+        match_user_id: user.id,
+        match_threshold: threshold,
+        match_count: limit,
+      }
+    );
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      results: results || [],
+      count: results?.length || 0,
+    });
+
+  } catch (error) {
+    console.error("Knowledge base search error:", error);
+    return res.status(500).json({ error: error.message || "Internal server error" });
+  }
+}

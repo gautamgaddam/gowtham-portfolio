@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import styles from "../../styles/snake.module.css";
+import styles from "../styles/snake.module.css";
 import {
   drawRect,
   drawCircle,

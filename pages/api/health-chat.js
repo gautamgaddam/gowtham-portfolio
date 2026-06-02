@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+import { getEffectiveSubscriptionTier, hasFullAccess } from "../../lib/access";
 
 export const config = {
   runtime: "nodejs",
@@ -7,6 +9,15 @@ export const config = {
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
+
+const requireAuth = process.env.HEALTH_CHAT_REQUIRE_AUTH !== "false";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MEAL PLANNING FRAMEWORKS & RESOURCES
@@ -531,6 +542,12 @@ function validateInput(messages) {
     if (!msg.role || !msg.content) {
       return { valid: false, error: "Each message must have role and content" };
     }
+    if (!["user", "assistant"].includes(msg.role)) {
+      return {
+        valid: false,
+        error: "Messages may only use user or assistant roles",
+      };
+    }
     if (typeof msg.content !== "string") {
       return { valid: false, error: "Message content must be a string" };
     }
@@ -1038,14 +1055,117 @@ function toFHIRBundle(profile, conversationSummary) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// USAGE TRACKING & AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MONTHLY_LIMITS = {
+  free: 25,
+  pro: 100,
+  premium: 500,
+};
+const FULL_ACCESS_MONTHLY_LIMIT = 999999;
+
+// Helper to extract user from JWT token
+async function getUserFromToken(req) {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token || !supabaseAdmin) return null;
+
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error) return null;
+  return user;
+}
+
+// Check and enforce usage limits
+async function checkUsageLimit(userId) {
+  if (!supabaseAdmin) return { allowed: true, count: 0, limit: Infinity, tier: "unknown" };
+
+  try {
+    // Get user's subscription tier
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, subscription_tier")
+      .eq("id", userId)
+      .single();
+
+    const tier = getEffectiveSubscriptionTier(null, profile);
+    const limit = hasFullAccess(null, profile)
+      ? FULL_ACCESS_MONTHLY_LIMIT
+      : MONTHLY_LIMITS[tier];
+
+    // Get current month's usage
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const resetDate = firstOfMonth.toISOString().split("T")[0];
+
+    const { data: usage } = await supabaseAdmin
+      .from("usage_tracking")
+      .select("usage_count")
+      .eq("user_id", userId)
+      .eq("feature", "health_chat")
+      .eq("reset_date", resetDate)
+      .single();
+
+    const currentCount = usage?.usage_count || 0;
+
+    return {
+      allowed: currentCount < limit,
+      count: currentCount,
+      limit,
+      tier,
+    };
+  } catch (error) {
+    console.error("Error checking usage limit:", error);
+    return { allowed: true, count: 0, limit: Infinity, tier: "unknown" };
+  }
+}
+
+// Increment usage count
+async function incrementUsage(userId) {
+  if (!supabaseAdmin) return;
+
+  try {
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const resetDate = firstOfMonth.toISOString().split("T")[0];
+
+    // Get current count
+    const { data: existing } = await supabaseAdmin
+      .from("usage_tracking")
+      .select("usage_count")
+      .eq("user_id", userId)
+      .eq("feature", "health_chat")
+      .eq("reset_date", resetDate)
+      .single();
+
+    const newCount = (existing?.usage_count || 0) + 1;
+
+    // Upsert the usage count
+    await supabaseAdmin
+      .from("usage_tracking")
+      .upsert({
+        user_id: userId,
+        feature: "health_chat",
+        usage_count: newCount,
+        reset_date: resetDate,
+      }, { onConflict: "user_id,feature,reset_date" });
+
+  } catch (error) {
+    console.error("Error incrementing usage:", error);
+  }
+}
+
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  let user = null;
+  let usageInfo = null;
+
   try {
-    const { messages } = req.body;
+    const { messages, knowledgeContext, profileContext } = req.body;
 
     // Validate input
     const validation = validateInput(messages);
@@ -1083,16 +1203,67 @@ export default async function handler(req, res) {
       }
     }
 
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API key is not configured" });
+    }
+
+    if (requireAuth && !supabaseAdmin) {
+      return res.status(500).json({
+        error: "Authentication database is not configured",
+      });
+    }
+
+    // Health conversations can contain sensitive data, so auth is required by default.
+    user = await getUserFromToken(req);
+
+    if (requireAuth && !user) {
+      return res.status(401).json({
+        error: "Please sign in to use the health chatbot.",
+      });
+    }
+    
+    // If user is authenticated, check usage limits
+    if (user) {
+      usageInfo = await checkUsageLimit(user.id);
+      
+      if (!usageInfo.allowed) {
+        return res.status(429).json({
+          error: `Monthly limit reached (${usageInfo.count}/${usageInfo.limit} messages used). Please upgrade to continue.`,
+          usage: usageInfo,
+        });
+      }
+    }
+
     // Prepend system message
-    const fullMessages = [
+    const messagesToSend = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...messages,
     ];
+
+    if (profileContext && typeof profileContext === "string") {
+      messagesToSend.push({
+        role: "system",
+        content: `USER HEALTH PROFILE CONTEXT:\n${profileContext.substring(0, 2000)}\nUse this as patient-reported context only. Do not treat it as a clinical diagnosis.`,
+      });
+    }
+
+    // If knowledge context provided, add it as additional system message
+    if (knowledgeContext && knowledgeContext.length > 0) {
+      const kbContent = "📚 RELEVANT CONTEXT FROM YOUR HEALTH HISTORY:\n\n" +
+        knowledgeContext.map(kb => 
+          `[${kb.content_type}]: ${kb.content.substring(0, 500)}${kb.content.length > 500 ? '...' : ''}`
+        ).join("\n\n") +
+        "\n\nUse the above context to provide personalized, continuous care. Reference past discussions where relevant.";
+      
+      messagesToSend.push({ role: "system", content: kbContent });
+    }
+
+    // Add user messages
+    messagesToSend.push(...messages);
 
     // Create streaming completion
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: fullMessages,
+      messages: messagesToSend,
       stream: true,
       temperature: 0.7,
       max_tokens: 1000,
@@ -1109,6 +1280,11 @@ export default async function handler(req, res) {
       if (content) {
         res.write(`data: ${JSON.stringify({ content })}\n\n`);
       }
+    }
+
+    // Increment usage count for authenticated users
+    if (user) {
+      await incrementUsage(user.id);
     }
 
     // End the stream

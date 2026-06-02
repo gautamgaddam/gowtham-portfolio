@@ -5,7 +5,7 @@ import SkipNextIcon from "@mui/icons-material/SkipNext";
 import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import { IconButton } from "@mui/material";
 import { Howl } from "howler";
-import styles from "../../styles/vinyl.module.css";
+import styles from "../styles/vinyl.module.css";
 
 const songs = [
   { id: 1, title: "Song 1", src: "../songs/Prince.mp3" },

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import styles from "../../styles/pong.module.css";
+import styles from "../styles/pong.module.css";
 import {
   drawRect,
   drawCircle,

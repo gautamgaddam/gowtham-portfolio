@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import styles from "../../styles/breakout.module.css";
+import styles from "../styles/breakout.module.css";
 import {
   drawRect,
   drawCircle,

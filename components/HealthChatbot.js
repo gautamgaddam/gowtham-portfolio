@@ -30,6 +30,8 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import EditIcon from "@mui/icons-material/Edit";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
+import HistoryIcon from "@mui/icons-material/History";
+import AddIcon from "@mui/icons-material/Add";
 import RestaurantIcon from "@mui/icons-material/Restaurant";
 import MedicationIcon from "@mui/icons-material/Medication";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -45,7 +47,10 @@ import ContrastIcon from "@mui/icons-material/Contrast";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useTheme } from "@mui/material/styles";
 import gsap, { Power3 } from "gsap";
-import styles from "../../styles/health.module.css";
+import styles from "../styles/health.module.css";
+import { createSupabaseClient } from "../lib/supabase";
+import { useAuth } from "../lib/auth-context";
+import ConversationHistory from "./ConversationHistory";
 
 const STORAGE_KEY = "health_chat_history";
 const PROFILE_STORAGE_KEY = "health_user_profile";
@@ -3422,6 +3427,14 @@ const HealthChatbot = () => {
     screenReaderMode: false,
   });
 
+  // Database and conversation management
+  const { user } = useAuth();
+  const supabase = createSupabaseClient();
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [usageStats, setUsageStats] = useState(null);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const containerRef = useRef(null);
@@ -3429,42 +3442,60 @@ const HealthChatbot = () => {
 
   // Load chat history and user profile on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setMessages(parsed.slice(-MAX_HISTORY));
-      }
+    const loadData = async () => {
+      try {
+        // Try to load from database first if user is logged in
+        const loadedFromDb = await loadConversationFromDb();
+        
+        // Fallback to localStorage if DB load failed or user not logged in
+        if (!loadedFromDb) {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            setMessages(parsed.slice(-MAX_HISTORY));
+          }
+        }
 
-      const storedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (storedProfile) {
-        setUserProfile(JSON.parse(storedProfile));
-        setIsFirstVisit(false);
-      } else {
-        // First visit - show profile modal and help panel
-        setTimeout(() => {
-          setShowProfileModal(true);
-          setShowHelpPanel(true);
-        }, 1000);
-      }
+        const dbProfile = await loadProfileFromDb();
 
-      // Load accessibility settings
-      const storedAccessibility = localStorage.getItem(
-        ACCESSIBILITY_STORAGE_KEY,
-      );
-      if (storedAccessibility) {
-        setAccessibilitySettings(JSON.parse(storedAccessibility));
-      }
+        if (dbProfile) {
+          setUserProfile(dbProfile);
+          localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(dbProfile));
+          setIsFirstVisit(false);
+        } else {
+          const storedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
+          if (storedProfile) {
+            setUserProfile(JSON.parse(storedProfile));
+            setIsFirstVisit(false);
+          } else {
+            // First visit - show profile modal and help panel
+            setTimeout(() => {
+              setShowProfileModal(true);
+              setShowHelpPanel(true);
+            }, 1000);
+          }
+        }
 
-      // Load draft message if exists
-      const storedDraft = localStorage.getItem("health_draft_message");
-      if (storedDraft) {
-        setInputValue(storedDraft);
+        // Load accessibility settings
+        const storedAccessibility = localStorage.getItem(
+          ACCESSIBILITY_STORAGE_KEY,
+        );
+        if (storedAccessibility) {
+          setAccessibilitySettings(JSON.parse(storedAccessibility));
+        }
+
+        // Load draft message if exists
+        const storedDraft = localStorage.getItem("health_draft_message");
+        if (storedDraft) {
+          setInputValue(storedDraft);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
       }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
-  }, []);
+    };
+
+    loadData();
+  }, [user]); // Re-run when user changes (login/logout)
 
   // Save accessibility settings
   useEffect(() => {
@@ -3536,27 +3567,6 @@ const HealthChatbot = () => {
       updateAnalytics();
     }
   }, [messages]);
-
-  // Load data on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setMessages(parsed);
-      }
-
-      const storedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (storedProfile) {
-        setUserProfile(JSON.parse(storedProfile));
-      } else {
-        // Show profile modal on first use
-        setTimeout(() => setShowProfileModal(true), 1000);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
-  }, []);
 
   // Save chat history whenever messages change
   useEffect(() => {
@@ -3672,10 +3682,29 @@ const HealthChatbot = () => {
     }
   };
 
-  const handleSaveProfile = (profile) => {
+  const handleSaveProfile = async (profile) => {
     setUserProfile(profile);
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
     setIsFirstVisit(false);
+
+    // Sync to database if user is logged in
+    if (user && supabase) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await fetch("/api/health-profile", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify(profile),
+          });
+        }
+      } catch (error) {
+        console.error("Error saving profile to database:", error);
+      }
+    }
   };
 
   // Update analytics
@@ -4070,7 +4099,25 @@ const HealthChatbot = () => {
     setShowExportModal(true);
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
+    // Delete from database if there's an active conversation
+    if (user && supabase && activeConversationId) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await fetch(`/api/health-conversations/${activeConversationId}`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting conversation:", error);
+      }
+      setActiveConversationId(null);
+    }
+
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
     setShowClearDialog(false);
@@ -4163,32 +4210,225 @@ const HealthChatbot = () => {
     return context;
   };
 
+  // Database helper functions
+  const loadProfileFromDb = async () => {
+    if (!user || !supabase) return null;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+
+      const response = await fetch("/api/health-profile", {
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) return null;
+
+      const dbProfile = await response.json();
+      if (!dbProfile) return null;
+
+      return {
+        ageBand: dbProfile.age_band || "",
+        conditions: dbProfile.conditions || [],
+        medications: dbProfile.medications || "",
+        allergies: dbProfile.allergies || "",
+        dietaryPattern: dbProfile.dietary_pattern || "",
+        cuisinePreference: dbProfile.cuisine_preference || "",
+        budgetLevel: dbProfile.budget_level || "",
+        pregnancyStatus: dbProfile.pregnancy_status || "Not pregnant",
+        goals: dbProfile.goals || [],
+      };
+    } catch (error) {
+      console.error("Error loading health profile:", error);
+      return null;
+    }
+  };
+
+  const saveConversationToDb = async (conversationId, messagesToSave) => {
+    if (!user || !supabase) return null;
+
+    try {
+      setIsSaving(true);
+      
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+
+      let convId = conversationId;
+
+      // If no conversation ID, create new conversation
+      if (!convId) {
+        const firstMessage = messagesToSave.find(m => m.role === "user")?.content;
+        const title = firstMessage 
+          ? firstMessage.substring(0, 50) + (firstMessage.length > 50 ? "..." : "")
+          : "New Conversation";
+
+        const response = await fetch("/api/health-conversations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ title }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          convId = data.id;
+          setActiveConversationId(convId);
+        }
+      }
+
+      // Update conversation with messages
+      if (convId) {
+        const updateResponse = await fetch(`/api/health-conversations/${convId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            messages: messagesToSave,
+            message_count: messagesToSave.length,
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error("Failed to update conversation");
+        }
+      }
+
+      return convId;
+    } catch (error) {
+      console.error("Error saving conversation:", error);
+      // Silently fail - localStorage fallback already active
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadConversationFromDb = async () => {
+    if (!user || !supabase) return false;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return false;
+
+      const response = await fetch("/api/health-conversations?limit=1&offset=0", {
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.conversations && data.conversations.length > 0) {
+          const latestConv = data.conversations[0];
+
+          const detailResponse = await fetch(`/api/health-conversations/${latestConv.id}`, {
+            headers: {
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (!detailResponse.ok) return false;
+
+          const detail = await detailResponse.json();
+          setActiveConversationId(detail.id);
+          setMessages(detail.messages || []);
+          
+          // Update usage stats
+          if (data.usage) {
+            setUsageStats(data.usage);
+          }
+          
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+    }
+    return false;
+  };
+
+  const fetchRelevantContext = async (userMessage) => {
+    if (!user || !supabase) return [];
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return [];
+
+      const response = await fetch("/api/health-knowledge/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          query: userMessage,
+          limit: 3,
+          threshold: 0.7,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.results || [];
+      }
+    } catch (error) {
+      console.error("Error fetching context:", error);
+    }
+    return [];
+  };
+
+  const embedConversationSummary = async (conversationId, messagesToEmbed) => {
+    if (!user || !supabase || !conversationId || messagesToEmbed.length < 5) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Create a summary of the conversation
+      const userMessages = messagesToEmbed.filter(m => m.role === "user");
+      const botMessages = messagesToEmbed.filter(m => m.role === "assistant");
+      
+      const summary = `Health conversation summary:\n` +
+        `User questions: ${userMessages.slice(-3).map(m => m.content.substring(0, 100)).join("; ")}\n` +
+        `Key recommendations: ${botMessages.slice(-2).map(m => m.content.substring(0, 150)).join("; ")}`;
+
+      await fetch("/api/health-knowledge/embed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          content: summary,
+          content_type: "conversation_summary",
+          metadata: {
+            conditions: userProfile?.conditions || [],
+            date: new Date().toISOString(),
+          },
+        }),
+      });
+    } catch (error) {
+      console.error("Error embedding summary:", error);
+    }
+  };
+
   const sendMessage = async (messageText) => {
     const text = messageText || inputValue.trim();
     if (!text || isStreaming) return;
 
     const userMessage = { role: "user", content: text };
 
-    // Prepend user context to the first message if profile exists
-    let messagesToSend = [...messages, userMessage];
-    if (userProfile && messages.length === 0) {
-      const contextMessage = {
-        role: "system",
-        content: buildUserContext(),
-      };
-      messagesToSend = [contextMessage, userMessage];
-    } else if (
-      userProfile &&
-      messages.length > 0 &&
-      !messages.some((m) => m.role === "system")
-    ) {
-      // Add context as first message if not already present
-      const contextMessage = {
-        role: "system",
-        content: buildUserContext(),
-      };
-      messagesToSend = [contextMessage, ...messages, userMessage];
-    }
+    const messagesToSend = [...messages, userMessage]
+      .filter((message) => ["user", "assistant"].includes(message.role))
+      .slice(-MAX_HISTORY);
 
     setMessages([...messages, userMessage]);
     setInputValue("");
@@ -4198,18 +4438,64 @@ const HealthChatbot = () => {
     const botMessage = { role: "assistant", content: "" };
     setMessages((prev) => [...prev, botMessage]);
 
+    // Fetch relevant knowledge base context for personalization
+    const kbContext = user ? await fetchRelevantContext(text) : [];
+
     try {
       abortControllerRef.current = new AbortController();
 
+      // Get auth token if user is logged in
+      let authHeaders = { "Content-Type": "application/json" };
+      if (user && supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+        }
+      }
+
       const response = await fetch("/api/health-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messagesToSend }),
+        headers: authHeaders,
+        body: JSON.stringify({ 
+          messages: messagesToSend,
+          knowledgeContext: kbContext,
+          profileContext: userProfile ? buildUserContext() : "",
+        }),
         signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle usage limit exceeded (429)
+        if (response.status === 429) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              role: "assistant",
+              content: "⚠️ **Monthly Message Limit Reached**\n\nYou've used all your messages for this month. Upgrade to Pro or Premium for more messages.\n\n[Upgrade to continue chatting](/pricing)",
+              isError: true,
+              canRetry: false,
+            };
+            return updated;
+          });
+          return;
+        }
+
+        if (response.status === 401) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              role: "assistant",
+              content: "Please sign in to use the health chatbot. Health conversations can include sensitive personal data, so this feature requires an authenticated account.",
+              isError: true,
+              canRetry: false,
+            };
+            return updated;
+          });
+          return;
+        }
+        
         throw new Error(errorData.error || "Failed to get response");
       }
 
@@ -4254,6 +4540,84 @@ const HealthChatbot = () => {
 
       // Clear retry count on success
       setRetryCount(0);
+
+      // Save conversation to database if user is logged in
+      if (user) {
+        const updatedMessages = [...messages, userMessage, { role: "assistant", content: accumulatedContent }];
+        const savedConversationId = await saveConversationToDb(activeConversationId, updatedMessages);
+
+        // Check for special content types to embed separately
+        const hasMealPlan = accumulatedContent.includes("## MEAL PLAN");
+        const hasClinicianSummary = accumulatedContent.includes("## CLINICIAN HANDOFF SUMMARY");
+
+        if (savedConversationId) {
+          // Embed meal plan
+          if (hasMealPlan) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                await fetch("/api/health-knowledge/embed", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                  },
+                  body: JSON.stringify({
+                    conversation_id: savedConversationId,
+                    content_type: "meal_plan",
+                    content: accumulatedContent,
+                    metadata: {
+                      conditions: userProfile?.conditions || [],
+                      date: new Date().toISOString(),
+                    },
+                  }),
+                });
+              }
+            } catch (error) {
+              console.error("Error embedding meal plan:", error);
+            }
+          }
+
+          // Embed clinician summary
+          if (hasClinicianSummary) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                await fetch("/api/health-knowledge/embed", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                  },
+                  body: JSON.stringify({
+                    conversation_id: savedConversationId,
+                    content_type: "clinician_summary",
+                    content: accumulatedContent,
+                    metadata: {
+                      conditions: userProfile?.conditions || [],
+                      date: new Date().toISOString(),
+                    },
+                  }),
+                });
+              }
+            } catch (error) {
+              console.error("Error embedding clinician summary:", error);
+            }
+          }
+        }
+
+        // Auto-embed conversation summary every 10 messages
+        if (updatedMessages.length % 10 === 0 && savedConversationId) {
+          await embedConversationSummary(savedConversationId, updatedMessages);
+        }
+
+        if (usageStats) {
+          setUsageStats({
+            ...usageStats,
+            count: Math.min((usageStats.count || 0) + 1, usageStats.limit),
+          });
+        }
+      }
     } catch (error) {
       if (error.name === "AbortError") {
         console.log("Request aborted");
@@ -4475,6 +4839,22 @@ const HealthChatbot = () => {
             </IconButton>
 
             <IconButton
+              onClick={() => {
+                setMessages([]);
+                setActiveConversationId(null);
+                localStorage.removeItem(STORAGE_KEY);
+              }}
+              className={styles.actionButton}
+              title="New Conversation"
+              aria-label="Start a new conversation"
+              sx={{
+                color: theme.palette.mode === "dark" ? "#4caf50" : "#2e7d32",
+              }}
+            >
+              <AddIcon />
+            </IconButton>
+
+            <IconButton
               onClick={() => setShowAccessibilityPanel(true)}
               className={styles.actionButton}
               title="Accessibility"
@@ -4542,6 +4922,19 @@ const HealthChatbot = () => {
 
             {messages.length > 0 && (
               <>
+                <IconButton
+                  onClick={() => setShowHistoryPanel(true)}
+                  className={styles.actionButton}
+                  title="Conversation History"
+                  aria-label="View conversation history"
+                  sx={{
+                    color:
+                      theme.palette.mode === "dark" ? "#9c27b0" : "#7b1fa2",
+                  }}
+                >
+                  <HistoryIcon />
+                </IconButton>
+
                 <IconButton
                   onClick={handleExportConversation}
                   className={styles.actionButton}
@@ -4803,6 +5196,35 @@ const HealthChatbot = () => {
           </Box>
         )}
 
+        {/* Usage Stats Display */}
+        {user && usageStats && (
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              borderTop: "2px solid #333",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              bgcolor: theme.palette.mode === "dark" ? "#0d0d0d" : "#f5f5f5",
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Monthly Usage: <strong>{usageStats.count} / {usageStats.limit === 999999 ? "∞" : usageStats.limit}</strong> messages
+            </Typography>
+            <Chip
+              label={usageStats.tier.toUpperCase()}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.7rem",
+                bgcolor: usageStats.tier === "premium" ? "#4caf50" : usageStats.tier === "pro" ? "#2196f3" : "#9e9e9e",
+                color: "#fff",
+              }}
+            />
+          </Box>
+        )}
+
         {/* Input Bar */}
         <Box
           className={styles.inputBar}
@@ -4890,6 +5312,37 @@ const HealthChatbot = () => {
               "Response complete"}
           </div>
         )}
+
+        {/* Conversation History Sidebar */}
+        <ConversationHistory
+          open={showHistoryPanel}
+          onClose={() => setShowHistoryPanel(false)}
+          activeConversationId={activeConversationId}
+          user={user}
+          onSelect={async (id) => {
+            try {
+              if (!supabase) return;
+              
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) return;
+
+              const response = await fetch(`/api/health-conversations/${id}`, {
+                headers: {
+                  "Authorization": `Bearer ${session.access_token}`,
+                },
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                setMessages(data.messages || []);
+                setActiveConversationId(id);
+                setShowHistoryPanel(false);
+              }
+            } catch (error) {
+              console.error("Error loading conversation:", error);
+            }
+          }}
+        />
       </Box>
     </>
   );

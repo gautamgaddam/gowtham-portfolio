@@ -5,6 +5,7 @@
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ============================================
 -- PROFILES TABLE
@@ -192,6 +193,8 @@ CREATE TABLE health_conversations (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   title text,
+  summary text,
+  message_count integer DEFAULT 0,
   messages jsonb NOT NULL DEFAULT '[]',
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -206,6 +209,37 @@ CREATE POLICY "Users can view own conversations"
 CREATE POLICY "Users can manage own conversations" 
   ON health_conversations FOR ALL 
   USING (auth.uid() = user_id);
+
+-- ============================================
+-- HEALTH KNOWLEDGE BASE TABLE (Vector Store)
+-- ============================================
+CREATE TABLE health_knowledge_base (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  conversation_id uuid REFERENCES health_conversations(id) ON DELETE CASCADE,
+  content_type text NOT NULL CHECK (content_type IN ('conversation_summary', 'meal_plan', 'clinician_summary', 'progress_report', 'supplement_check', 'other')),
+  content text NOT NULL,
+  embedding vector(1536),
+  metadata jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE health_knowledge_base ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own knowledge base" 
+  ON health_knowledge_base FOR SELECT 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage own knowledge base" 
+  ON health_knowledge_base FOR ALL 
+  USING (auth.uid() = user_id);
+
+-- Knowledge base indexes
+CREATE INDEX health_kb_user_idx ON health_knowledge_base(user_id);
+CREATE INDEX health_kb_conversation_idx ON health_knowledge_base(conversation_id);
+CREATE INDEX health_kb_content_type_idx ON health_knowledge_base(content_type);
+CREATE INDEX health_kb_embedding_idx ON health_knowledge_base 
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- ============================================
 -- MUSIC GENERATIONS TABLE
@@ -254,7 +288,8 @@ CREATE POLICY "Users can view own usage tracking"
 
 CREATE POLICY "System can manage usage tracking" 
   ON usage_tracking FOR ALL 
-  USING (true);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- ============================================
 -- INDEXES FOR PERFORMANCE
@@ -293,6 +328,41 @@ CREATE TRIGGER update_health_profiles_updated_at BEFORE UPDATE ON health_profile
 
 CREATE TRIGGER update_health_conversations_updated_at BEFORE UPDATE ON health_conversations 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- VECTOR SEARCH RPC FUNCTION
+-- ============================================
+CREATE OR REPLACE FUNCTION match_health_knowledge(
+  query_embedding vector(1536),
+  match_user_id uuid,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 5
+)
+RETURNS TABLE (
+  id uuid,
+  content text,
+  content_type text,
+  metadata jsonb,
+  conversation_id uuid,
+  similarity float,
+  created_at timestamp with time zone
+)
+LANGUAGE sql STABLE
+AS $$
+  SELECT 
+    id,
+    content,
+    content_type,
+    metadata,
+    conversation_id,
+    1 - (embedding <=> query_embedding) AS similarity,
+    created_at
+  FROM health_knowledge_base
+  WHERE user_id = match_user_id
+    AND 1 - (embedding <=> query_embedding) > match_threshold
+  ORDER BY embedding <=> query_embedding
+  LIMIT match_count;
+$$;
 
 -- ============================================
 -- STORAGE BUCKETS (Create via Supabase Dashboard)

@@ -8,7 +8,7 @@ import {
   useTheme,
 } from "@mui/material";
 import styles from "../styles/about.module.css";
-import SkillRadarChart from "./comps/RadarChart";
+import SkillRadarChart from "../components/RadarChart";
 
 const Skills = () => {
   const theme = useTheme();

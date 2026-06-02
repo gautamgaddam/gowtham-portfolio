@@ -11,7 +11,8 @@ import { Lock } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
-import HealthChatbot from "../comps/HealthChatbot";
+import { hasPaidFeatureAccess } from "../../lib/access";
+import HealthChatbot from "../../components/HealthChatbot";
 
 export default function DashboardHealth() {
   const { user, profile, loading } = useAuth();
@@ -45,7 +46,7 @@ export default function DashboardHealth() {
     return null;
   }
 
-  if (profile?.subscription_tier === "free") {
+  if (!hasPaidFeatureAccess(user, profile)) {
     return (
       <Box
         sx={{

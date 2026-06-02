@@ -23,7 +23,7 @@ import {
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useState } from "react";
-import { useAuth } from "../../lib/auth-context";
+import { useAuth } from "../lib/auth-context";
 
 const Navbar = () => {
   const theme = useTheme();

@@ -30,7 +30,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import styles from "../../styles/musicstudio.module.css";
+import styles from "../styles/musicstudio.module.css";
 
 // Register ChartJS components
 ChartJS.register(

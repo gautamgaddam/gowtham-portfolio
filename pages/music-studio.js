@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import MusicStudio from "./comps/MusicStudio";
+import MusicStudio from "../components/MusicStudio";
 
 const MusicStudioPage = () => {
   return (

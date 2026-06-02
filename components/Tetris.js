@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import styles from "../../styles/tetris.module.css";
+import styles from "../styles/tetris.module.css";
 
 const GS = 40; // cell size in px
 const GW = 10; // grid width

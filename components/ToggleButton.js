@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import ColorModeContext from "../../styles/ColorModeContext";
+import ColorModeContext from "../styles/ColorModeContext";
 import { useTheme } from "@mui/material/styles";
 
 import Tooltip from "@mui/material/Tooltip";

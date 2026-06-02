@@ -24,6 +24,10 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../lib/auth-context";
 import { createSupabaseClient } from "../../lib/supabase";
+import {
+  getEffectiveSubscriptionTier,
+  hasFullAccess,
+} from "../../lib/access";
 
 const brutalistCard = {
   border: "4px solid #000",
@@ -122,13 +126,18 @@ export default function SettingsPage() {
 
   if (!user) return null;
 
-  const tier = profile?.subscription_tier || profile?.tier || "free";
+  const tier = getEffectiveSubscriptionTier(user, profile);
+  const fullAccess = hasFullAccess(user, profile);
 
   const tierChipProps = {
     free: { label: "Free", color: "default" },
     pro: { label: "Pro", color: "primary" },
     premium: { label: "Premium", color: "success" },
   }[tier] || { label: "Free", color: "default" };
+
+  if (fullAccess) {
+    tierChipProps.label = "Full Access";
+  }
 
   const tierDescription =
     {
@@ -137,6 +146,10 @@ export default function SettingsPage() {
       premium:
         "Full access to all features including AI tools, unlimited storage, and dedicated support.",
     }[tier] || "Access to core portfolio features.";
+
+  const effectiveTierDescription = fullAccess
+    ? "This owner account has full access. Other users still need an active Pro or Premium subscription for premium tools."
+    : tierDescription;
 
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
@@ -299,7 +312,7 @@ export default function SettingsPage() {
             />
             {tier !== "free" && (
               <Chip
-                label="Active"
+                label={fullAccess ? "Owner Override" : "Active"}
                 sx={{
                   bgcolor: "#4caf50",
                   color: "#fff",
@@ -311,7 +324,7 @@ export default function SettingsPage() {
           </Box>
 
           <Typography variant="body1" sx={{ mb: 3, color: "text.secondary" }}>
-            {tierDescription}
+            {effectiveTierDescription}
           </Typography>
 
           {tier === "free" ? (

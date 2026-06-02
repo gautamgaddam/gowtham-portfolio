@@ -11,7 +11,8 @@ import { MusicNote } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
-import MusicStudio from "../comps/MusicStudio";
+import { hasPaidFeatureAccess } from "../../lib/access";
+import MusicStudio from "../../components/MusicStudio";
 
 export default function DashboardMusic() {
   const { user, profile, loading } = useAuth();
@@ -45,7 +46,7 @@ export default function DashboardMusic() {
     return null;
   }
 
-  if (profile?.subscription_tier === "free") {
+  if (!hasPaidFeatureAccess(user, profile)) {
     return (
       <Box
         sx={{

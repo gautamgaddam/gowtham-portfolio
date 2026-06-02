@@ -248,7 +248,8 @@ CREATE POLICY "Users can view own usage tracking"
 DROP POLICY IF EXISTS "System can manage usage tracking" ON usage_tracking;
 CREATE POLICY "System can manage usage tracking" 
   ON usage_tracking FOR ALL 
-  USING (true);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- ============================================
 -- INDEXES

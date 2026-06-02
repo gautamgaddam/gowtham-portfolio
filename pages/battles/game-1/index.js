@@ -14,12 +14,12 @@ import {
 import { useRouter } from "next/router";
 import Slide from "@mui/material/Slide";
 import { CloseSharp } from "@mui/icons-material";
-import Tetris from "../../comps/Tetris";
-import Snake from "../../comps/Snake";
-import SpaceInvaders from "../../comps/SpaceInvaders";
-import Breakout from "../../comps/Breakout";
-import Game2048 from "../../comps/Game2048";
-import Pong from "../../comps/Pong";
+import Tetris from "../../../components/Tetris";
+import Snake from "../../../components/Snake";
+import SpaceInvaders from "../../../components/SpaceInvaders";
+import Breakout from "../../../components/Breakout";
+import Game2048 from "../../../components/Game2048";
+import Pong from "../../../components/Pong";
 import styles from "../../../styles/battles.module.css";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
