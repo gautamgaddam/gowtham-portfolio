@@ -51,6 +51,11 @@ import styles from "../styles/health.module.css";
 import { createSupabaseClient } from "../lib/supabase";
 import { useAuth } from "../lib/auth-context";
 import ConversationHistory from "./ConversationHistory";
+import {
+  BODY_COMPOSITION_METHODS,
+  calculateBodyComposition,
+  fromBodyCompositionDb,
+} from "../lib/body-composition";
 
 const STORAGE_KEY = "health_chat_history";
 const PROFILE_STORAGE_KEY = "health_user_profile";
@@ -96,6 +101,373 @@ const GOALS = [
   "Increase activity",
 ];
 
+const EMPTY_BODY_COMPOSITION_PROFILE = {
+  heightCm: "",
+  weightKg: "",
+  bodyFatPercent: "",
+  muscleMassKg: "",
+  bodyWaterPercent: "",
+  boneMassKg: "",
+  visceralFatRating: "",
+  bodyCompositionMethod: "",
+  bodyCompositionMeasuredAt: "",
+  bodyCompositionNotes: "",
+};
+
+const BODY_COMPOSITION_FIELDS = [
+  { key: "heightCm", label: "Height", suffix: "cm" },
+  { key: "weightKg", label: "Weight", suffix: "kg" },
+  { key: "bodyFatPercent", label: "Body Fat", suffix: "%" },
+  { key: "muscleMassKg", label: "Muscle Mass", suffix: "kg" },
+  { key: "bodyWaterPercent", label: "Body Water", suffix: "%" },
+  { key: "boneMassKg", label: "Bone Mass", suffix: "kg" },
+  { key: "visceralFatRating", label: "Visceral Fat Rating", suffix: "" },
+];
+
+const hasBodyCompositionInput = (profile = {}) =>
+  BODY_COMPOSITION_FIELDS.some(({ key }) => profile[key] !== "" && profile[key] != null);
+
+const formatBodyMetric = (value, suffix = "") => {
+  if (value === "" || value === null || value === undefined) return "Not set";
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "Not set";
+  return `${numeric.toFixed(Number.isInteger(numeric) ? 0 : 1)}${suffix}`;
+};
+
+const formatBodyDate = (value) => {
+  if (!value) return "No date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString();
+};
+
+const normalizeBodyReading = (reading = {}) => ({
+  id: reading.id,
+  createdAt: reading.created_at,
+  updatedAt: reading.updated_at,
+  ...fromBodyCompositionDb(reading),
+});
+
+const buildBodyCompositionTrend = (readings = []) => {
+  if (readings.length < 2) return null;
+
+  const latest = normalizeBodyReading(readings[0]);
+  const previous = normalizeBodyReading(readings[1]);
+  const delta = (key, suffix) => {
+    const latestValue = Number(latest[key]);
+    const previousValue = Number(previous[key]);
+    if (!Number.isFinite(latestValue) || !Number.isFinite(previousValue)) {
+      return null;
+    }
+
+    const diff = Math.round((latestValue - previousValue) * 10) / 10;
+    if (diff === 0) return `no change ${suffix}`.trim();
+    return `${diff > 0 ? "+" : ""}${diff}${suffix}`;
+  };
+
+  return {
+    latestDate: latest.bodyCompositionMeasuredAt || latest.createdAt,
+    weight: delta("weightKg", " kg"),
+    bodyFat: delta("bodyFatPercent", "%"),
+    muscle: delta("muscleMassKg", " kg"),
+  };
+};
+
+const isSameBodyCompositionReading = (profile = {}, reading = {}) => {
+  if (!reading) return false;
+  const normalized = normalizeBodyReading(reading);
+  const keys = [
+    "heightCm",
+    "weightKg",
+    "bodyFatPercent",
+    "muscleMassKg",
+    "bodyWaterPercent",
+    "boneMassKg",
+    "visceralFatRating",
+    "bodyCompositionMethod",
+    "bodyCompositionMeasuredAt",
+  ];
+
+  return keys.every((key) => String(profile[key] || "") === String(normalized[key] || ""));
+};
+
+const BodyCompositionMetricsPanel = ({ profile }) => {
+  const theme = useTheme();
+  const calculated = calculateBodyComposition(profile);
+  const hasInput = hasBodyCompositionInput(profile);
+
+  return (
+    <Box
+      sx={{
+        border: "2px solid #333",
+        backgroundColor: theme.palette.mode === "dark" ? "#101010" : "#f7f7f7",
+        p: 2,
+      }}
+    >
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+        Calculated Snapshot
+      </Typography>
+      {hasInput ? (
+        <>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
+            <Chip label={`BMI: ${formatBodyMetric(calculated.bmi)}`} />
+            <Chip label={`BMI category: ${calculated.bmiCategory || "Need height + weight"}`} />
+            <Chip label={`Fat mass: ${formatBodyMetric(calculated.fatMassKg, " kg")}`} />
+            <Chip label={`Lean mass: ${formatBodyMetric(calculated.leanMassKg, " kg")}`} />
+            <Chip label={`Body fat: ${calculated.bodyFatCategory || "Need body fat %"}`} />
+            <Chip label={calculated.weightToMuscleContext || "Need muscle mass"} />
+          </Box>
+          <Typography variant="caption" sx={{ display: "block", mt: 1.5, color: "#9ca3af" }}>
+            Estimates vary by method and device. This is for progress tracking and personalization, not diagnosis.
+          </Typography>
+        </>
+      ) : (
+        <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+          Add weight, height, body fat, or muscle readings to calculate BMI, fat mass, and lean mass.
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+const BodyCompositionHistoryPanel = ({ readings, onDelete, onUpdate, onClose }) => {
+  const theme = useTheme();
+  const trend = buildBodyCompositionTrend(readings);
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState(EMPTY_BODY_COMPOSITION_PROFILE);
+
+  const startEditing = (item) => {
+    setEditingId(item.id);
+    setEditValues({
+      ...EMPTY_BODY_COMPOSITION_PROFILE,
+      heightCm: item.heightCm ?? "",
+      weightKg: item.weightKg ?? "",
+      bodyFatPercent: item.bodyFatPercent ?? "",
+      muscleMassKg: item.muscleMassKg ?? "",
+      bodyWaterPercent: item.bodyWaterPercent ?? "",
+      boneMassKg: item.boneMassKg ?? "",
+      visceralFatRating: item.visceralFatRating ?? "",
+      bodyCompositionMethod: item.bodyCompositionMethod || "",
+      bodyCompositionMeasuredAt: item.bodyCompositionMeasuredAt || "",
+      bodyCompositionNotes: item.bodyCompositionNotes || "",
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValues(EMPTY_BODY_COMPOSITION_PROFILE);
+  };
+
+  const saveEditing = async () => {
+    if (!editingId || !onUpdate) return;
+    await onUpdate(editingId, editValues);
+    cancelEditing();
+  };
+
+  return (
+    <Box
+      sx={{
+        border: "2px solid #000",
+        backgroundColor: theme.palette.mode === "dark" ? "#141414" : "#fff",
+        color: theme.palette.mode === "dark" ? "#e2e8f0" : "#111827",
+        p: 2,
+        mb: 2,
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          Body Composition History
+        </Typography>
+        <Button size="small" onClick={onClose}>
+          Close
+        </Button>
+      </Box>
+
+      {trend && (
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+          <Chip label={`Latest: ${formatBodyDate(trend.latestDate)}`} />
+          {trend.weight && <Chip label={`Weight ${trend.weight}`} />}
+          {trend.bodyFat && <Chip label={`Body fat ${trend.bodyFat}`} />}
+          {trend.muscle && <Chip label={`Muscle ${trend.muscle}`} />}
+        </Box>
+      )}
+
+      {readings.length === 0 ? (
+        <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+          No historical readings yet. Save body composition values in your profile to create the first reading.
+        </Typography>
+      ) : (
+        <Box sx={{ display: "grid", gap: 1 }}>
+          {readings.slice(0, 8).map((reading) => {
+            const item = normalizeBodyReading(reading);
+            const isEditing = editingId === item.id;
+            const displayValues = isEditing ? editValues : item;
+            const calculated = calculateBodyComposition(displayValues);
+            return (
+              <Box
+                key={item.id}
+                sx={{
+                  border: "1px solid #333",
+                  p: 1.5,
+                  display: "grid",
+                  gap: 0.75,
+                  backgroundColor: theme.palette.mode === "dark" ? "#0b0b0b" : "#f8fafc",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {formatBodyDate(item.bodyCompositionMeasuredAt || item.createdAt)}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    {isEditing ? (
+                      <>
+                        <IconButton
+                          size="small"
+                          onClick={saveEditing}
+                          aria-label="Save body composition reading"
+                        >
+                          <CheckCircleIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={cancelEditing}
+                          aria-label="Cancel body composition edit"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    ) : (
+                      <>
+                        {onUpdate && (
+                          <IconButton
+                            size="small"
+                            onClick={() => startEditing(item)}
+                            aria-label="Edit body composition reading"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                        {onDelete && (
+                          <IconButton
+                            size="small"
+                            onClick={() => onDelete(item.id)}
+                            aria-label="Delete body composition reading"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </Box>
+                {isEditing ? (
+                  <>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, minmax(0, 1fr))",
+                        },
+                        gap: 1,
+                      }}
+                    >
+                      {BODY_COMPOSITION_FIELDS.map((field) => (
+                        <TextField
+                          key={field.key}
+                          size="small"
+                          type="number"
+                          label={`${field.label}${field.suffix ? ` (${field.suffix})` : ""}`}
+                          value={editValues[field.key]}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              [field.key]: e.target.value,
+                            })
+                          }
+                          inputProps={{ min: 0, step: "0.1" }}
+                        />
+                      ))}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, minmax(0, 1fr))",
+                        },
+                        gap: 1,
+                      }}
+                    >
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Method</InputLabel>
+                        <Select
+                          value={editValues.bodyCompositionMethod}
+                          label="Method"
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              bodyCompositionMethod: e.target.value,
+                            })
+                          }
+                        >
+                          {BODY_COMPOSITION_METHODS.map((method) => (
+                            <MenuItem key={method} value={method}>
+                              {method}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <TextField
+                        size="small"
+                        type="date"
+                        label="Measurement Date"
+                        value={editValues.bodyCompositionMeasuredAt}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            bodyCompositionMeasuredAt: e.target.value,
+                          })
+                        }
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                    <TextField
+                      size="small"
+                      multiline
+                      rows={2}
+                      label="Notes"
+                      value={editValues.bodyCompositionNotes}
+                      onChange={(e) =>
+                        setEditValues({
+                          ...editValues,
+                          bodyCompositionNotes: e.target.value,
+                        })
+                      }
+                    />
+                  </>
+                ) : null}
+                <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                  <Chip size="small" label={`Weight ${formatBodyMetric(displayValues.weightKg, " kg")}`} />
+                  <Chip size="small" label={`Body fat ${formatBodyMetric(displayValues.bodyFatPercent, "%")}`} />
+                  <Chip size="small" label={`Muscle ${formatBodyMetric(displayValues.muscleMassKg, " kg")}`} />
+                  <Chip size="small" label={`BMI ${formatBodyMetric(calculated.bmi)}`} />
+                  <Chip size="small" label={`Fat mass ${formatBodyMetric(calculated.fatMassKg, " kg")}`} />
+                  <Chip size="small" label={`Lean mass ${formatBodyMetric(calculated.leanMassKg, " kg")}`} />
+                </Box>
+                <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+                  Method: {displayValues.bodyCompositionMethod || "Not set"}
+                  {displayValues.bodyCompositionNotes ? ` | Notes: ${displayValues.bodyCompositionNotes}` : ""}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 // PersonalizationIntakeModal Component
 const PersonalizationIntakeModal = ({
   open,
@@ -116,7 +488,37 @@ const PersonalizationIntakeModal = ({
     budgetLevel: initialProfile?.budgetLevel || "",
     pregnancyStatus: initialProfile?.pregnancyStatus || "Not pregnant",
     goals: initialProfile?.goals || [],
+    ...EMPTY_BODY_COMPOSITION_PROFILE,
+    ...Object.fromEntries(
+      Object.keys(EMPTY_BODY_COMPOSITION_PROFILE).map((key) => [
+        key,
+        initialProfile?.[key] ?? EMPTY_BODY_COMPOSITION_PROFILE[key],
+      ]),
+    ),
   });
+
+  useEffect(() => {
+    if (!open) return;
+
+    setProfile({
+      ageBand: initialProfile?.ageBand || "",
+      conditions: initialProfile?.conditions || [],
+      medications: initialProfile?.medications || "",
+      allergies: initialProfile?.allergies || "",
+      dietaryPattern: initialProfile?.dietaryPattern || "",
+      cuisinePreference: initialProfile?.cuisinePreference || "",
+      budgetLevel: initialProfile?.budgetLevel || "",
+      pregnancyStatus: initialProfile?.pregnancyStatus || "Not pregnant",
+      goals: initialProfile?.goals || [],
+      ...EMPTY_BODY_COMPOSITION_PROFILE,
+      ...Object.fromEntries(
+        Object.keys(EMPTY_BODY_COMPOSITION_PROFILE).map((key) => [
+          key,
+          initialProfile?.[key] ?? EMPTY_BODY_COMPOSITION_PROFILE[key],
+        ]),
+      ),
+    });
+  }, [open, initialProfile]);
 
   useEffect(() => {
     if (open && modalRef.current) {
@@ -325,6 +727,105 @@ const PersonalizationIntakeModal = ({
               <MenuItem value="Planning pregnancy">Planning pregnancy</MenuItem>
             </Select>
           </FormControl>
+
+          {/* Body Composition */}
+          <Box className={styles.formSection}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+              Body Composition
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#9ca3af", mb: 1.5 }}>
+              Enter readings from a smart scale, DXA, calipers, or manual estimate. Stored units are kg and cm.
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 1.5,
+                mb: 1.5,
+              }}
+            >
+              {BODY_COMPOSITION_FIELDS.map((field) => (
+                <TextField
+                  key={field.key}
+                  fullWidth
+                  type="number"
+                  label={`${field.label}${field.suffix ? ` (${field.suffix})` : ""}`}
+                  value={profile[field.key]}
+                  onChange={(e) =>
+                    setProfile({ ...profile, [field.key]: e.target.value })
+                  }
+                  inputProps={{ min: 0, step: "0.1" }}
+                />
+              ))}
+            </Box>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 1.5,
+                mb: 1.5,
+              }}
+            >
+              <FormControl fullWidth>
+                <InputLabel>Measurement Method</InputLabel>
+                <Select
+                  value={profile.bodyCompositionMethod}
+                  label="Measurement Method"
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      bodyCompositionMethod: e.target.value,
+                    })
+                  }
+                >
+                  {BODY_COMPOSITION_METHODS.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                type="date"
+                label="Measurement Date"
+                value={profile.bodyCompositionMeasuredAt}
+                onChange={(e) =>
+                  setProfile({
+                    ...profile,
+                    bodyCompositionMeasuredAt: e.target.value,
+                  })
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              label="Body Composition Notes"
+              placeholder="e.g., morning fasted BIA reading, post-workout reading, DXA clinic result"
+              value={profile.bodyCompositionNotes}
+              onChange={(e) =>
+                setProfile({
+                  ...profile,
+                  bodyCompositionNotes: e.target.value,
+                })
+              }
+              sx={{ mb: 1.5 }}
+            />
+
+            <BodyCompositionMetricsPanel profile={profile} />
+          </Box>
 
           {/* Goals */}
           <Box className={styles.formSection}>
@@ -3413,11 +3914,14 @@ const HealthChatbot = () => {
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
+  const [showBodyCompositionHistory, setShowBodyCompositionHistory] =
+    useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [draftMessage, setDraftMessage] = useState("");
+  const [bodyCompositionReadings, setBodyCompositionReadings] = useState([]);
 
   // Accessibility settings
   const [accessibilitySettings, setAccessibilitySettings] = useState({
@@ -3457,6 +3961,8 @@ const HealthChatbot = () => {
         }
 
         const dbProfile = await loadProfileFromDb();
+        const dbBodyCompositionReadings = await loadBodyCompositionReadings();
+        setBodyCompositionReadings(dbBodyCompositionReadings);
 
         if (dbProfile) {
           setUserProfile(dbProfile);
@@ -3552,6 +4058,7 @@ const HealthChatbot = () => {
         setShowHelpPanel(false);
         setShowPrivacyNotice(false);
         setShowInsights(false);
+        setShowBodyCompositionHistory(false);
         setShowExportModal(false);
         setShowImportModal(false);
       }
@@ -3683,8 +4190,16 @@ const HealthChatbot = () => {
   };
 
   const handleSaveProfile = async (profile) => {
-    setUserProfile(profile);
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    const profileWithCalculations = {
+      ...profile,
+      ...calculateBodyComposition(profile),
+    };
+
+    setUserProfile(profileWithCalculations);
+    localStorage.setItem(
+      PROFILE_STORAGE_KEY,
+      JSON.stringify(profileWithCalculations),
+    );
     setIsFirstVisit(false);
 
     // Sync to database if user is logged in
@@ -3698,8 +4213,30 @@ const HealthChatbot = () => {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify(profile),
+            body: JSON.stringify(profileWithCalculations),
           });
+
+          if (
+            hasBodyCompositionInput(profileWithCalculations) &&
+            !isSameBodyCompositionReading(
+              profileWithCalculations,
+              bodyCompositionReadings[0],
+            )
+          ) {
+            const readingResponse = await fetch("/api/health-body-composition", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify(profileWithCalculations),
+            });
+
+            if (readingResponse.ok) {
+              const readings = await loadBodyCompositionReadings();
+              setBodyCompositionReadings(readings);
+            }
+          }
         }
       } catch (error) {
         console.error("Error saving profile to database:", error);
@@ -3881,6 +4418,22 @@ const HealthChatbot = () => {
       if (userProfile.goals.length > 0) {
         markdown += `- **Goals**: ${userProfile.goals.join(", ")}\n`;
       }
+      if (hasBodyCompositionInput(userProfile)) {
+        const body = calculateBodyComposition(userProfile);
+        markdown += `\n### Body Composition\n\n`;
+        markdown += `- **Measurement Date**: ${formatBodyDate(body.bodyCompositionMeasuredAt)}\n`;
+        markdown += `- **Method**: ${body.bodyCompositionMethod || "Not set"}\n`;
+        markdown += `- **Height**: ${formatBodyMetric(body.heightCm, " cm")}\n`;
+        markdown += `- **Weight**: ${formatBodyMetric(body.weightKg, " kg")}\n`;
+        markdown += `- **Body Fat**: ${formatBodyMetric(body.bodyFatPercent, "%")}\n`;
+        markdown += `- **Muscle Mass**: ${formatBodyMetric(body.muscleMassKg, " kg")}\n`;
+        markdown += `- **BMI**: ${formatBodyMetric(body.bmi)} (${body.bmiCategory || "Not calculated"})\n`;
+        markdown += `- **Fat Mass**: ${formatBodyMetric(body.fatMassKg, " kg")}\n`;
+        markdown += `- **Lean Mass**: ${formatBodyMetric(body.leanMassKg, " kg")}\n`;
+        if (body.bodyCompositionNotes) {
+          markdown += `- **Notes**: ${body.bodyCompositionNotes}\n`;
+        }
+      }
       markdown += `\n---\n\n`;
     }
 
@@ -3920,6 +4473,22 @@ const HealthChatbot = () => {
       text += `Budget: ${userProfile.budgetLevel}\n`;
       if (userProfile.goals.length > 0) {
         text += `Goals: ${userProfile.goals.join(", ")}\n`;
+      }
+      if (hasBodyCompositionInput(userProfile)) {
+        const body = calculateBodyComposition(userProfile);
+        text += `\nBODY COMPOSITION\n`;
+        text += `Measurement Date: ${formatBodyDate(body.bodyCompositionMeasuredAt)}\n`;
+        text += `Method: ${body.bodyCompositionMethod || "Not set"}\n`;
+        text += `Height: ${formatBodyMetric(body.heightCm, " cm")}\n`;
+        text += `Weight: ${formatBodyMetric(body.weightKg, " kg")}\n`;
+        text += `Body Fat: ${formatBodyMetric(body.bodyFatPercent, "%")}\n`;
+        text += `Muscle Mass: ${formatBodyMetric(body.muscleMassKg, " kg")}\n`;
+        text += `BMI: ${formatBodyMetric(body.bmi)} (${body.bmiCategory || "Not calculated"})\n`;
+        text += `Fat Mass: ${formatBodyMetric(body.fatMassKg, " kg")}\n`;
+        text += `Lean Mass: ${formatBodyMetric(body.leanMassKg, " kg")}\n`;
+        if (body.bodyCompositionNotes) {
+          text += `Notes: ${body.bodyCompositionNotes}\n`;
+        }
       }
       text += `\n${"=".repeat(60)}\n\n`;
     }
@@ -4129,7 +4698,8 @@ const HealthChatbot = () => {
       !userProfile &&
       action !== "audio-library" &&
       action !== "supplement-check" &&
-      action !== "progress-tracker"
+      action !== "progress-tracker" &&
+      action !== "body-composition"
     ) {
       setShowProfileModal(true);
       return;
@@ -4163,6 +4733,9 @@ const HealthChatbot = () => {
         return;
       case "progress-tracker":
         setShowProgressTracker(true);
+        return;
+      case "body-composition":
+        setShowBodyCompositionHistory(true);
         return;
       default:
         break;
@@ -4205,6 +4778,53 @@ const HealthChatbot = () => {
     if (userProfile.goals.length > 0) {
       parts.push(`Goals: ${userProfile.goals.join(", ")}`);
     }
+    if (hasBodyCompositionInput(userProfile)) {
+      const body = calculateBodyComposition(userProfile);
+      const bodyParts = [];
+      if (body.heightCm) bodyParts.push(`height ${body.heightCm} cm`);
+      if (body.weightKg) bodyParts.push(`weight ${body.weightKg} kg`);
+      if (body.bodyFatPercent)
+        bodyParts.push(`body fat ${body.bodyFatPercent}%`);
+      if (body.muscleMassKg) bodyParts.push(`muscle mass ${body.muscleMassKg} kg`);
+      if (body.bodyWaterPercent)
+        bodyParts.push(`body water ${body.bodyWaterPercent}%`);
+      if (body.boneMassKg) bodyParts.push(`bone mass ${body.boneMassKg} kg`);
+      if (body.visceralFatRating)
+        bodyParts.push(`visceral fat rating ${body.visceralFatRating}`);
+      if (body.bmi) bodyParts.push(`BMI ${body.bmi} (${body.bmiCategory})`);
+      if (body.fatMassKg) bodyParts.push(`estimated fat mass ${body.fatMassKg} kg`);
+      if (body.leanMassKg)
+        bodyParts.push(`estimated lean mass ${body.leanMassKg} kg`);
+      if (body.bodyFatCategory)
+        bodyParts.push(`body fat category ${body.bodyFatCategory}`);
+      if (body.weightToMuscleContext)
+        bodyParts.push(body.weightToMuscleContext);
+      if (body.bodyCompositionMethod)
+        bodyParts.push(`method ${body.bodyCompositionMethod}`);
+      if (body.bodyCompositionMeasuredAt)
+        bodyParts.push(`measured ${body.bodyCompositionMeasuredAt}`);
+
+      parts.push(`Latest body composition: ${bodyParts.join("; ")}`);
+    }
+
+    const bodyTrend = buildBodyCompositionTrend(bodyCompositionReadings);
+    if (bodyTrend) {
+      const trendParts = [
+        bodyTrend.weight ? `weight ${bodyTrend.weight}` : null,
+        bodyTrend.bodyFat ? `body fat ${bodyTrend.bodyFat}` : null,
+        bodyTrend.muscle ? `muscle mass ${bodyTrend.muscle}` : null,
+        bodyTrend.latestDate ? `latest measurement ${bodyTrend.latestDate}` : null,
+      ].filter(Boolean);
+      if (trendParts.length > 0) {
+        parts.push(`Body composition trend from latest two readings: ${trendParts.join("; ")}`);
+      }
+    }
+
+    if (hasBodyCompositionInput(userProfile) || bodyCompositionReadings.length > 0) {
+      parts.push(
+        "Body composition rule: use these values only to personalize nutrition, activity, and progress guidance; do not diagnose disease from them; mention method/device limitations when interpreting estimates.",
+      );
+    }
 
     context += parts.join(", ");
     return context;
@@ -4239,10 +4859,101 @@ const HealthChatbot = () => {
         budgetLevel: dbProfile.budget_level || "",
         pregnancyStatus: dbProfile.pregnancy_status || "Not pregnant",
         goals: dbProfile.goals || [],
+        ...fromBodyCompositionDb(dbProfile),
       };
     } catch (error) {
       console.error("Error loading health profile:", error);
       return null;
+    }
+  };
+
+  const loadBodyCompositionReadings = async () => {
+    if (!user || !supabase) return [];
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return [];
+
+      const response = await fetch("/api/health-body-composition", {
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : data.readings || [];
+    } catch (error) {
+      console.error("Error loading body composition readings:", error);
+      return [];
+    }
+  };
+
+  const handleDeleteBodyCompositionReading = async (readingId) => {
+    if (!readingId || !user || !supabase) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `/api/health-body-composition?id=${encodeURIComponent(readingId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+        },
+      );
+
+      if (!response.ok) return;
+
+      const [readings, profile] = await Promise.all([
+        loadBodyCompositionReadings(),
+        loadProfileFromDb(),
+      ]);
+      setBodyCompositionReadings(readings);
+      if (profile) {
+        setUserProfile(profile);
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      }
+    } catch (error) {
+      console.error("Error deleting body composition reading:", error);
+    }
+  };
+
+  const handleUpdateBodyCompositionReading = async (readingId, values) => {
+    if (!readingId || !user || !supabase) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `/api/health-body-composition?id=${encodeURIComponent(readingId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(values),
+        },
+      );
+
+      if (!response.ok) return;
+
+      const [readings, profile] = await Promise.all([
+        loadBodyCompositionReadings(),
+        loadProfileFromDb(),
+      ]);
+      setBodyCompositionReadings(readings);
+      if (profile) {
+        setUserProfile(profile);
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      }
+    } catch (error) {
+      console.error("Error updating body composition reading:", error);
     }
   };
 
@@ -4920,6 +5631,18 @@ const HealthChatbot = () => {
               <EditIcon />
             </IconButton>
 
+            <IconButton
+              onClick={() => setShowBodyCompositionHistory(true)}
+              className={styles.actionButton}
+              title="Body Composition"
+              aria-label="View body composition history"
+              sx={{
+                color: theme.palette.mode === "dark" ? "#2196f3" : "#1976d2",
+              }}
+            >
+              <BarChartIcon />
+            </IconButton>
+
             {messages.length > 0 && (
               <>
                 <IconButton
@@ -5133,6 +5856,15 @@ const HealthChatbot = () => {
             <ProgressTracker onClose={() => setShowProgressTracker(false)} />
           )}
 
+          {showBodyCompositionHistory && (
+            <BodyCompositionHistoryPanel
+              readings={bodyCompositionReadings}
+              onDelete={handleDeleteBodyCompositionReading}
+              onUpdate={handleUpdateBodyCompositionReading}
+              onClose={() => setShowBodyCompositionHistory(false)}
+            />
+          )}
+
           <div ref={messagesEndRef} />
         </Box>
 
@@ -5183,6 +5915,15 @@ const HealthChatbot = () => {
               aria-label="Open progress tracker"
             >
               Progress
+            </Button>
+            <Button
+              onClick={() => handleQuickAction("body-composition")}
+              className={styles.quickActionButton}
+              startIcon={<BarChartIcon />}
+              disabled={isStreaming}
+              aria-label="Open body composition history"
+            >
+              Body Comp
             </Button>
             <Button
               onClick={() => handleQuickAction("weekly-plan")}

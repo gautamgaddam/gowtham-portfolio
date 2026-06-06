@@ -5,6 +5,7 @@
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ============================================
 -- PROFILES TABLE
@@ -157,9 +158,42 @@ CREATE TABLE IF NOT EXISTS health_profiles (
   budget_level text,
   pregnancy_status text,
   goals text[],
+  height_cm decimal,
+  weight_kg decimal,
+  body_fat_percent decimal,
+  muscle_mass_kg decimal,
+  body_water_percent decimal,
+  bone_mass_kg decimal,
+  visceral_fat_rating decimal,
+  body_composition_method text,
+  body_composition_measured_at date,
+  body_composition_notes text,
+  bmi decimal,
+  fat_mass_kg decimal,
+  lean_mass_kg decimal,
+  body_fat_category text,
+  bmi_category text,
+  weight_to_muscle_context text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS height_cm decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS weight_kg decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_fat_percent decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS muscle_mass_kg decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_water_percent decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS bone_mass_kg decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS visceral_fat_rating decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_composition_method text;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_composition_measured_at date;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_composition_notes text;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS bmi decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS fat_mass_kg decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS lean_mass_kg decimal;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS body_fat_category text;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS bmi_category text;
+ALTER TABLE health_profiles ADD COLUMN IF NOT EXISTS weight_to_muscle_context text;
 
 ALTER TABLE health_profiles ENABLE ROW LEVEL SECURITY;
 
@@ -172,6 +206,45 @@ DROP POLICY IF EXISTS "Users can manage own health profile" ON health_profiles;
 CREATE POLICY "Users can manage own health profile" 
   ON health_profiles FOR ALL 
   USING (auth.uid() = user_id);
+
+-- ============================================
+-- HEALTH BODY COMPOSITION READINGS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS health_body_composition_readings (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  height_cm decimal,
+  weight_kg decimal,
+  body_fat_percent decimal,
+  muscle_mass_kg decimal,
+  body_water_percent decimal,
+  bone_mass_kg decimal,
+  visceral_fat_rating decimal,
+  body_composition_method text,
+  body_composition_measured_at date,
+  body_composition_notes text,
+  bmi decimal,
+  fat_mass_kg decimal,
+  lean_mass_kg decimal,
+  body_fat_category text,
+  bmi_category text,
+  weight_to_muscle_context text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE health_body_composition_readings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own body composition readings" ON health_body_composition_readings;
+CREATE POLICY "Users can view own body composition readings"
+  ON health_body_composition_readings FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can manage own body composition readings" ON health_body_composition_readings;
+CREATE POLICY "Users can manage own body composition readings"
+  ON health_body_composition_readings FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- ============================================
 -- HEALTH CONVERSATIONS TABLE
@@ -196,6 +269,116 @@ DROP POLICY IF EXISTS "Users can manage own conversations" ON health_conversatio
 CREATE POLICY "Users can manage own conversations" 
   ON health_conversations FOR ALL 
   USING (auth.uid() = user_id);
+
+-- ============================================
+-- HEALTH KNOWLEDGE BASE TABLE (Private user memory vector store)
+-- ============================================
+CREATE TABLE IF NOT EXISTS health_knowledge_base (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  conversation_id uuid REFERENCES health_conversations(id) ON DELETE CASCADE,
+  content_type text NOT NULL CHECK (content_type IN ('conversation_summary', 'meal_plan', 'clinician_summary', 'progress_report', 'supplement_check', 'other')),
+  content text NOT NULL,
+  embedding vector(1536),
+  metadata jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE health_knowledge_base ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own knowledge base" ON health_knowledge_base;
+CREATE POLICY "Users can view own knowledge base" 
+  ON health_knowledge_base FOR SELECT 
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can manage own knowledge base" ON health_knowledge_base;
+CREATE POLICY "Users can manage own knowledge base" 
+  ON health_knowledge_base FOR ALL 
+  USING (auth.uid() = user_id);
+
+-- ============================================
+-- SHARED HEALTH DOCUMENTS TABLE (Admin-uploaded RAG books)
+-- ============================================
+CREATE TABLE IF NOT EXISTS health_documents (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  uploaded_by uuid REFERENCES auth.users ON DELETE SET NULL,
+  title text NOT NULL,
+  author text,
+  file_name text,
+  file_size_bytes bigint,
+  mime_type text DEFAULT 'application/pdf',
+  source_kind text DEFAULT 'book' CHECK (source_kind IN ('book', 'article', 'guide', 'other')),
+  visibility text DEFAULT 'shared' CHECK (visibility IN ('shared', 'admin_only')),
+  status text DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'failed')),
+  chunk_count integer DEFAULT 0,
+  page_count integer DEFAULT 0,
+  error_message text,
+  metadata jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE health_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can view shared health documents" ON health_documents;
+CREATE POLICY "Authenticated users can view shared health documents"
+  ON health_documents FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL
+    AND (
+      visibility = 'shared'
+      OR lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com'
+    )
+  );
+
+DROP POLICY IF EXISTS "Only admin can manage health documents" ON health_documents;
+CREATE POLICY "Only admin can manage health documents"
+  ON health_documents FOR ALL
+  USING (lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com')
+  WITH CHECK (lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com');
+
+-- ============================================
+-- SHARED HEALTH DOCUMENT CHUNKS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS health_document_chunks (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  document_id uuid REFERENCES health_documents(id) ON DELETE CASCADE NOT NULL,
+  chunk_index integer NOT NULL,
+  content text NOT NULL,
+  embedding vector(1536),
+  page_start integer,
+  page_end integer,
+  chapter text,
+  topics text[] DEFAULT '{}',
+  conditions text[] DEFAULT '{}',
+  metadata jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(document_id, chunk_index)
+);
+
+ALTER TABLE health_document_chunks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can view shared health document chunks" ON health_document_chunks;
+CREATE POLICY "Authenticated users can view shared health document chunks"
+  ON health_document_chunks FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM health_documents d
+      WHERE d.id = health_document_chunks.document_id
+        AND (
+          d.visibility = 'shared'
+          OR lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com'
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS "Only admin can manage health document chunks" ON health_document_chunks;
+CREATE POLICY "Only admin can manage health document chunks"
+  ON health_document_chunks FOR ALL
+  USING (lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com')
+  WITH CHECK (lower(auth.jwt()->>'email') = 'gautammaddyson@gmail.com');
 
 -- ============================================
 -- MUSIC GENERATIONS TABLE
@@ -259,6 +442,20 @@ CREATE INDEX IF NOT EXISTS skills_user_id_idx ON skills(user_id);
 CREATE INDEX IF NOT EXISTS projects_user_id_idx ON projects(user_id);
 CREATE INDEX IF NOT EXISTS projects_featured_idx ON projects(featured) WHERE featured = true;
 CREATE INDEX IF NOT EXISTS health_conversations_user_id_idx ON health_conversations(user_id);
+CREATE INDEX IF NOT EXISTS health_body_composition_user_date_idx
+  ON health_body_composition_readings(user_id, body_composition_measured_at DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS health_kb_user_idx ON health_knowledge_base(user_id);
+CREATE INDEX IF NOT EXISTS health_kb_conversation_idx ON health_knowledge_base(conversation_id);
+CREATE INDEX IF NOT EXISTS health_kb_content_type_idx ON health_knowledge_base(content_type);
+CREATE INDEX IF NOT EXISTS health_kb_embedding_idx ON health_knowledge_base 
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX IF NOT EXISTS health_documents_status_idx ON health_documents(status);
+CREATE INDEX IF NOT EXISTS health_documents_visibility_idx ON health_documents(visibility);
+CREATE INDEX IF NOT EXISTS health_document_chunks_document_idx ON health_document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS health_document_chunks_topics_idx ON health_document_chunks USING gin(topics);
+CREATE INDEX IF NOT EXISTS health_document_chunks_conditions_idx ON health_document_chunks USING gin(conditions);
+CREATE INDEX IF NOT EXISTS health_document_chunks_embedding_idx ON health_document_chunks
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS music_generations_user_id_idx ON music_generations(user_id);
 CREATE INDEX IF NOT EXISTS usage_tracking_user_feature_idx ON usage_tracking(user_id, feature, reset_date);
 
@@ -292,6 +489,95 @@ CREATE TRIGGER update_health_profiles_updated_at BEFORE UPDATE ON health_profile
 DROP TRIGGER IF EXISTS update_health_conversations_updated_at ON health_conversations;
 CREATE TRIGGER update_health_conversations_updated_at BEFORE UPDATE ON health_conversations 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_body_composition_updated_at ON health_body_composition_readings;
+CREATE TRIGGER update_health_body_composition_updated_at BEFORE UPDATE ON health_body_composition_readings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_documents_updated_at ON health_documents;
+CREATE TRIGGER update_health_documents_updated_at BEFORE UPDATE ON health_documents
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- VECTOR SEARCH RPC FUNCTIONS
+-- ============================================
+CREATE OR REPLACE FUNCTION match_health_knowledge(
+  query_embedding vector(1536),
+  match_user_id uuid,
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 5
+)
+RETURNS TABLE (
+  id uuid,
+  content text,
+  content_type text,
+  metadata jsonb,
+  conversation_id uuid,
+  similarity float,
+  created_at timestamp with time zone
+)
+LANGUAGE sql STABLE
+AS $$
+  SELECT 
+    id,
+    content,
+    content_type,
+    metadata,
+    conversation_id,
+    1 - (embedding <=> query_embedding) AS similarity,
+    created_at
+  FROM health_knowledge_base
+  WHERE user_id = match_user_id
+    AND 1 - (embedding <=> query_embedding) > match_threshold
+  ORDER BY embedding <=> query_embedding
+  LIMIT match_count;
+$$;
+
+CREATE OR REPLACE FUNCTION match_health_document_chunks(
+  query_embedding vector(1536),
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 6,
+  include_admin_only boolean DEFAULT false
+)
+RETURNS TABLE (
+  chunk_id uuid,
+  document_id uuid,
+  title text,
+  author text,
+  content text,
+  page_start integer,
+  page_end integer,
+  chapter text,
+  topics text[],
+  conditions text[],
+  metadata jsonb,
+  similarity float,
+  created_at timestamp with time zone
+)
+LANGUAGE sql STABLE
+AS $$
+  SELECT
+    c.id AS chunk_id,
+    d.id AS document_id,
+    d.title,
+    d.author,
+    c.content,
+    c.page_start,
+    c.page_end,
+    c.chapter,
+    c.topics,
+    c.conditions,
+    c.metadata,
+    1 - (c.embedding <=> query_embedding) AS similarity,
+    c.created_at
+  FROM health_document_chunks c
+  JOIN health_documents d ON d.id = c.document_id
+  WHERE d.status = 'ready'
+    AND (d.visibility = 'shared' OR include_admin_only = true)
+    AND 1 - (c.embedding <=> query_embedding) > match_threshold
+  ORDER BY c.embedding <=> query_embedding
+  LIMIT match_count;
+$$;
 
 -- ============================================
 -- USER CREATION TRIGGER (Must be LAST)
