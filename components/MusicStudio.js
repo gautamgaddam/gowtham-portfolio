@@ -117,6 +117,9 @@ const MusicStudio = () => {
   const containerRef = useRef(null);
   const patternCardsRef = useRef([]);
 
+  const formatFeaturePercent = (value) =>
+    typeof value === "number" ? `${Math.round(value * 100)}%` : "--";
+
   // GSAP entrance animation on mount
   useEffect(() => {
     if (containerRef.current) {
@@ -257,6 +260,18 @@ const MusicStudio = () => {
     if (!artistData?.averages) return null;
 
     const avg = artistData.averages;
+    const radarValues = [
+      avg.energy,
+      avg.danceability,
+      avg.valence,
+      avg.acousticness,
+      avg.instrumentalness,
+      avg.speechiness,
+      avg.liveness,
+    ];
+
+    if (!radarValues.some((value) => typeof value === "number")) return null;
+
     return {
       labels: [
         "Energy",
@@ -270,15 +285,9 @@ const MusicStudio = () => {
       datasets: [
         {
           label: artistData.artist.name,
-          data: [
-            avg.energy * 100,
-            avg.danceability * 100,
-            avg.valence * 100,
-            avg.acousticness * 100,
-            avg.instrumentalness * 100,
-            avg.speechiness * 100,
-            avg.liveness * 100,
-          ],
+          data: radarValues.map((value) =>
+            typeof value === "number" ? value * 100 : 0,
+          ),
           backgroundColor: "rgba(99, 102, 241, 0.2)",
           borderColor: "rgba(99, 102, 241, 1)",
           borderWidth: 2,
@@ -443,6 +452,15 @@ const MusicStudio = () => {
             </Box>
 
             {/* Audio Features Pattern Grid */}
+            {!artistData.averages && artistData.analysis?.message && (
+              <Box className={styles.analysisNotice}>
+                <Typography className={styles.analysisNoticeTitle}>
+                  Artist metadata ready
+                </Typography>
+                <Typography>{artistData.analysis.message}</Typography>
+              </Box>
+            )}
+
             {artistData.averages && (
               <Box className={styles.patternGrid}>
                 <Box
@@ -451,7 +469,9 @@ const MusicStudio = () => {
                 >
                   <Typography className={styles.patternLabel}>Tempo</Typography>
                   <Typography className={styles.patternValue}>
-                    {artistData.averages.tempo} BPM
+                    {typeof artistData.averages.tempo === "number"
+                      ? `${artistData.averages.tempo} BPM`
+                      : "--"}
                   </Typography>
                 </Box>
                 <Box
@@ -462,7 +482,7 @@ const MusicStudio = () => {
                     Energy
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.energy * 100)}%
+                    {formatFeaturePercent(artistData.averages.energy)}
                   </Typography>
                 </Box>
                 <Box
@@ -473,7 +493,7 @@ const MusicStudio = () => {
                     Danceability
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.danceability * 100)}%
+                    {formatFeaturePercent(artistData.averages.danceability)}
                   </Typography>
                 </Box>
                 <Box
@@ -484,7 +504,7 @@ const MusicStudio = () => {
                     Valence
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.valence * 100)}%
+                    {formatFeaturePercent(artistData.averages.valence)}
                   </Typography>
                 </Box>
                 <Box
@@ -495,7 +515,7 @@ const MusicStudio = () => {
                     Acousticness
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.acousticness * 100)}%
+                    {formatFeaturePercent(artistData.averages.acousticness)}
                   </Typography>
                 </Box>
                 <Box
@@ -506,7 +526,9 @@ const MusicStudio = () => {
                     Instrumentalness
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.instrumentalness * 100)}%
+                    {formatFeaturePercent(
+                      artistData.averages.instrumentalness,
+                    )}
                   </Typography>
                 </Box>
                 <Box
@@ -517,7 +539,7 @@ const MusicStudio = () => {
                     Speechiness
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.speechiness * 100)}%
+                    {formatFeaturePercent(artistData.averages.speechiness)}
                   </Typography>
                 </Box>
                 <Box
@@ -528,7 +550,7 @@ const MusicStudio = () => {
                     Liveness
                   </Typography>
                   <Typography className={styles.patternValue}>
-                    {Math.round(artistData.averages.liveness * 100)}%
+                    {formatFeaturePercent(artistData.averages.liveness)}
                   </Typography>
                 </Box>
               </Box>
@@ -723,6 +745,42 @@ const MusicStudio = () => {
                 <Typography variant="h4" sx={{ color: "#6366f1", mb: 2 }}>
                   🎼 {generationResult.productionNotes.title}
                 </Typography>
+
+                <Box className={styles.generationStatus}>
+                  <Typography className={styles.generationStatusTitle}>
+                    {generationResult.audioGeneration?.status === "ready"
+                      ? "Generated music ready"
+                      : "Production notes ready"}
+                  </Typography>
+                  <Typography>
+                    {generationResult.message ||
+                      generationResult.audioGeneration?.message}
+                  </Typography>
+                  {generationResult.audioProvider && (
+                    <Chip
+                      label={`Provider: ${generationResult.audioProvider}`}
+                      className={styles.metaChip}
+                      size="small"
+                    />
+                  )}
+                </Box>
+
+                {generationResult.audioUrl && (
+                  <Box className={styles.audioPlayer}>
+                    <Typography variant="h5" sx={{ color: "#6366f1", mb: 2 }}>
+                      Generated BGM
+                    </Typography>
+                    <audio controls src={generationResult.audioUrl} />
+                    <Button
+                      className={styles.downloadButton}
+                      href={generationResult.audioUrl}
+                      download="generated-music.mp3"
+                      startIcon={<DownloadIcon />}
+                    >
+                      Download Music
+                    </Button>
+                  </Box>
+                )}
 
                 <Box className={styles.notesSection}>
                   <Typography variant="h6">Song Structure</Typography>

@@ -52,6 +52,12 @@ import { createSupabaseClient } from "../lib/supabase";
 import { useAuth } from "../lib/auth-context";
 import ConversationHistory from "./ConversationHistory";
 import {
+  BodyDashboardPanel,
+  DailyTrackerPanel,
+  DocumentsPanel,
+  PlansPanel,
+} from "./HealthWorkspacePanels";
+import {
   BODY_COMPOSITION_METHODS,
   calculateBodyComposition,
   fromBodyCompositionDb,
@@ -62,6 +68,14 @@ const PROFILE_STORAGE_KEY = "health_user_profile";
 const ANALYTICS_STORAGE_KEY = "health_analytics";
 const ACCESSIBILITY_STORAGE_KEY = "health_accessibility_settings";
 const MAX_HISTORY = 50;
+const HEALTH_WORKSPACE_TABS = [
+  { id: "chat", label: "Chat" },
+  { id: "tracker", label: "Daily Tracker" },
+  { id: "body", label: "Body" },
+  { id: "plans", label: "Plans" },
+  { id: "documents", label: "Documents" },
+  { id: "settings", label: "Settings" },
+];
 
 const SUGGESTED_PROMPTS = [
   "I have high blood pressure and type 2 diabetes. Create a cheap vegetarian meal plan.",
@@ -3922,6 +3936,15 @@ const HealthChatbot = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [draftMessage, setDraftMessage] = useState("");
   const [bodyCompositionReadings, setBodyCompositionReadings] = useState([]);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("chat");
+  const [trackerData, setTrackerData] = useState({
+    log: null,
+    food: [],
+    activities: [],
+    symptoms: [],
+    goals: [],
+  });
+  const [selectedBodyZone, setSelectedBodyZone] = useState("");
 
   // Accessibility settings
   const [accessibilitySettings, setAccessibilitySettings] = useState({
@@ -4716,26 +4739,33 @@ const HealthChatbot = () => {
     switch (action) {
       case "meal-plan":
         prompt = `Create me a ${diet} ${cuisine} meal plan for ${conditions} that fits my profile`;
+        setActiveWorkspaceTab("plans");
         break;
       case "supplement-check":
         setShowSupplementChecker(true);
+        setActiveWorkspaceTab("settings");
         return;
       case "weekly-plan":
         prompt =
           "Create a comprehensive weekly self-care plan including meals, exercise, and stress management";
+        setActiveWorkspaceTab("plans");
         break;
       case "clinician-summary":
         prompt =
           "Please generate a clinician handoff summary of our conversation that I can share with my doctor.";
+        setActiveWorkspaceTab("chat");
         break;
       case "audio-library":
         setShowAudioLibrary(true);
+        setActiveWorkspaceTab("settings");
         return;
       case "progress-tracker":
         setShowProgressTracker(true);
+        setActiveWorkspaceTab("tracker");
         return;
       case "body-composition":
         setShowBodyCompositionHistory(true);
+        setActiveWorkspaceTab("body");
         return;
       default:
         break;
@@ -4823,6 +4853,52 @@ const HealthChatbot = () => {
     if (hasBodyCompositionInput(userProfile) || bodyCompositionReadings.length > 0) {
       parts.push(
         "Body composition rule: use these values only to personalize nutrition, activity, and progress guidance; do not diagnose disease from them; mention method/device limitations when interpreting estimates.",
+      );
+    }
+    if (
+      trackerData.food.length > 0 ||
+      trackerData.activities.length > 0 ||
+      trackerData.symptoms.length > 0 ||
+      trackerData.goals.length > 0 ||
+      trackerData.log
+    ) {
+      const trackerParts = [];
+      if (trackerData.log?.mood) trackerParts.push(`mood ${trackerData.log.mood}`);
+      if (trackerData.log?.sleep_hours)
+        trackerParts.push(`sleep ${trackerData.log.sleep_hours} hours`);
+      if (trackerData.log?.water_liters)
+        trackerParts.push(`water ${trackerData.log.water_liters} liters`);
+      if (trackerData.food.length > 0)
+        trackerParts.push(
+          `foods logged: ${trackerData.food
+            .slice(0, 5)
+            .map((entry) => `${entry.meal_type}: ${entry.food_name}`)
+            .join("; ")}`,
+        );
+      if (trackerData.activities.length > 0)
+        trackerParts.push(
+          `activities: ${trackerData.activities
+            .slice(0, 4)
+            .map((entry) => `${entry.activity_type} ${entry.duration_minutes || ""} min`)
+            .join("; ")}`,
+        );
+      if (trackerData.symptoms.length > 0)
+        trackerParts.push(
+          `symptoms: ${trackerData.symptoms
+            .slice(0, 5)
+            .map((entry) => `${entry.body_zone}: ${entry.symptom} severity ${entry.severity || "not set"}`)
+            .join("; ")}`,
+        );
+      if (trackerData.goals.length > 0)
+        trackerParts.push(
+          `active goals: ${trackerData.goals
+            .slice(0, 5)
+            .map((entry) => `${entry.title} (${entry.target || "no target"})`)
+            .join("; ")}`,
+        );
+      parts.push(`Daily tracker context: ${trackerParts.join(", ")}`);
+      parts.push(
+        "Tracker rule: use logged meals, workouts, goals, symptoms, and daily notes to personalize plans; do not diagnose from tracker data.",
       );
     }
 
@@ -5176,7 +5252,7 @@ const HealthChatbot = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         
         // Handle usage limit exceeded (429)
         if (response.status === 429) {
@@ -5206,8 +5282,29 @@ const HealthChatbot = () => {
           });
           return;
         }
-        
-        throw new Error(errorData.error || "Failed to get response");
+
+        const friendlyErrors = {
+          "Authentication database is not configured":
+            "The health chat database connection is not configured. Check `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, then restart the dev server.",
+          "OpenAI API key is not configured":
+            "The AI provider is not configured. Add `OPENAI_API_KEY` and restart the dev server.",
+          "Database not configured":
+            "The health database is not configured. Add Supabase environment variables and restart the dev server.",
+        };
+        const rawError = errorData.error || "Failed to get response";
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content:
+              friendlyErrors[rawError] ||
+              `I could not complete that request: ${rawError}`,
+            isError: true,
+            canRetry: false,
+          };
+          return updated;
+        });
+        return;
       }
 
       const reader = response.body.getReader();
@@ -5465,6 +5562,95 @@ const HealthChatbot = () => {
     sendMessage(suggestion);
   };
 
+  const latestAssistantMessage =
+    [...messages].reverse().find((message) => message.role === "assistant" && message.content)
+      ?.content || "";
+
+  const handleBodyZoneSelect = (zone) => {
+    setSelectedBodyZone(zone);
+    setActiveWorkspaceTab("tracker");
+  };
+
+  const handleAskPlan = (planType) => {
+    setActiveWorkspaceTab("chat");
+    const prompts = {
+      meal:
+        "Create a daily meal plan using my profile, body composition, symptoms, goals, and food log. Include evidence level, safety cautions, and practical South Asian-friendly options if relevant.",
+      workout:
+        "Create a workout plan using my body composition, symptoms, underlying conditions, and goals. Include safety limits and progression guidance.",
+      goals:
+        "Set 3 realistic daily health goals using my body composition, food log, symptoms, workouts, and underlying conditions.",
+    };
+    sendMessage(prompts[planType] || prompts.meal);
+  };
+
+  const renderWorkspacePanel = () => {
+    if (activeWorkspaceTab === "tracker") {
+      return (
+        <DailyTrackerPanel
+          selectedZone={selectedBodyZone}
+          onTrackerChange={setTrackerData}
+        />
+      );
+    }
+
+    if (activeWorkspaceTab === "body") {
+      return (
+        <BodyCompositionHistoryPanel
+          readings={bodyCompositionReadings}
+          onDelete={handleDeleteBodyCompositionReading}
+          onUpdate={handleUpdateBodyCompositionReading}
+          onClose={() => setShowBodyCompositionHistory(false)}
+        />
+      );
+    }
+
+    if (activeWorkspaceTab === "plans") {
+      return (
+        <PlansPanel
+          latestAssistantMessage={latestAssistantMessage}
+          onAskPlan={handleAskPlan}
+          onSaved={() => setActiveWorkspaceTab("tracker")}
+        />
+      );
+    }
+
+    if (activeWorkspaceTab === "documents") {
+      return <DocumentsPanel />;
+    }
+
+    return (
+      <Box sx={{ display: "grid", gap: 2 }}>
+        {showSupplementChecker && (
+          <SupplementChecker
+            userMedications={userProfile?.medications || ""}
+            onClose={() => setShowSupplementChecker(false)}
+          />
+        )}
+        {showAudioLibrary && (
+          <GuidedAudioLibrary onClose={() => setShowAudioLibrary(false)} />
+        )}
+        {showProgressTracker && (
+          <ProgressTracker onClose={() => setShowProgressTracker(false)} />
+        )}
+        {showBodyCompositionHistory && (
+          <BodyCompositionHistoryPanel
+            readings={bodyCompositionReadings}
+            onDelete={handleDeleteBodyCompositionReading}
+            onUpdate={handleUpdateBodyCompositionReading}
+            onClose={() => setShowBodyCompositionHistory(false)}
+          />
+        )}
+        <AccessibilityPanel
+          open={showAccessibilityPanel}
+          onClose={() => setShowAccessibilityPanel(false)}
+          settings={accessibilitySettings}
+          onSettingsChange={setAccessibilitySettings}
+        />
+      </Box>
+    );
+  };
+
   return (
     <>
       <PersonalizationIntakeModal
@@ -5706,7 +5892,23 @@ const HealthChatbot = () => {
 
         {/* Chat Header */}
         <Box className={styles.chatHeader}>
-          <Typography variant="h1">� Evidence-Based Health Coach</Typography>
+          <Typography variant="h1">Evidence-Based Health Coach</Typography>
+        </Box>
+
+        <Box className={styles.workspaceTabs}>
+          {HEALTH_WORKSPACE_TABS.map((tab) => (
+            <Button
+              key={tab.id}
+              onClick={() => setActiveWorkspaceTab(tab.id)}
+              className={
+                activeWorkspaceTab === tab.id
+                  ? styles.workspaceTabActive
+                  : styles.workspaceTab
+              }
+            >
+              {tab.label}
+            </Button>
+          ))}
         </Box>
 
         {/* Messages List */}
@@ -5840,32 +6042,19 @@ const HealthChatbot = () => {
               ))
           )}
 
-          {/* New Interactive Components */}
-          {showAudioLibrary && (
-            <GuidedAudioLibrary onClose={() => setShowAudioLibrary(false)} />
-          )}
-
-          {showSupplementChecker && (
-            <SupplementChecker
-              userMedications={userProfile?.medications || ""}
-              onClose={() => setShowSupplementChecker(false)}
-            />
-          )}
-
-          {showProgressTracker && (
-            <ProgressTracker onClose={() => setShowProgressTracker(false)} />
-          )}
-
-          {showBodyCompositionHistory && (
-            <BodyCompositionHistoryPanel
-              readings={bodyCompositionReadings}
-              onDelete={handleDeleteBodyCompositionReading}
-              onUpdate={handleUpdateBodyCompositionReading}
-              onClose={() => setShowBodyCompositionHistory(false)}
-            />
-          )}
-
           <div ref={messagesEndRef} />
+        </Box>
+
+        <Box className={styles.workspaceSidePanel}>
+          <BodyDashboardPanel
+            userProfile={userProfile}
+            bodyCompositionReadings={bodyCompositionReadings}
+            trackerData={trackerData}
+            onZoneSelect={handleBodyZoneSelect}
+          />
+          <Box className={styles.workspaceToolPanel}>
+            {renderWorkspacePanel()}
+          </Box>
         </Box>
 
         {/* Quick Actions Bar */}
@@ -5941,6 +6130,7 @@ const HealthChatbot = () => {
         {user && usageStats && (
           <Box
             sx={{
+              gridColumn: 1,
               px: 2,
               py: 1,
               borderTop: "2px solid #333",

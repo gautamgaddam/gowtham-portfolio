@@ -247,6 +247,115 @@ CREATE POLICY "Users can manage own body composition readings"
   WITH CHECK (auth.uid() = user_id);
 
 -- ============================================
+-- HEALTH DAILY TRACKER TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS health_daily_logs (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  log_date date NOT NULL,
+  mood text,
+  sleep_hours decimal,
+  water_liters decimal,
+  energy_level integer CHECK (energy_level IS NULL OR energy_level BETWEEN 1 AND 10),
+  stress_level integer CHECK (stress_level IS NULL OR stress_level BETWEEN 1 AND 10),
+  notes text,
+  summary jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(user_id, log_date)
+);
+
+CREATE TABLE IF NOT EXISTS health_food_entries (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  log_date date NOT NULL,
+  meal_type text DEFAULT 'snack' CHECK (meal_type IN ('breakfast', 'lunch', 'dinner', 'snack')),
+  food_name text NOT NULL,
+  quantity text,
+  calories decimal,
+  protein_g decimal,
+  carbs_g decimal,
+  fat_g decimal,
+  fiber_g decimal,
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS health_activity_entries (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  log_date date NOT NULL,
+  activity_type text NOT NULL,
+  duration_minutes decimal,
+  intensity text DEFAULT 'moderate' CHECK (intensity IN ('low', 'moderate', 'high')),
+  calories_burned decimal,
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS health_symptom_entries (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  log_date date NOT NULL,
+  body_zone text DEFAULT 'general',
+  symptom text NOT NULL,
+  severity integer CHECK (severity IS NULL OR severity BETWEEN 1 AND 10),
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS health_goals (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  goal_type text DEFAULT 'general',
+  title text NOT NULL,
+  target text,
+  cadence text DEFAULT 'daily' CHECK (cadence IN ('daily', 'weekly', 'monthly')),
+  status text DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'archived')),
+  start_date date,
+  target_date date,
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS health_goal_checkins (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  goal_id uuid REFERENCES health_goals(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  checkin_date date NOT NULL,
+  value decimal,
+  completed boolean DEFAULT false,
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(goal_id, checkin_date)
+);
+
+ALTER TABLE health_daily_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_food_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_activity_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_symptom_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_goal_checkins ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage own daily logs" ON health_daily_logs;
+CREATE POLICY "Users can manage own daily logs" ON health_daily_logs FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own food entries" ON health_food_entries;
+CREATE POLICY "Users can manage own food entries" ON health_food_entries FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own activity entries" ON health_activity_entries;
+CREATE POLICY "Users can manage own activity entries" ON health_activity_entries FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own symptom entries" ON health_symptom_entries;
+CREATE POLICY "Users can manage own symptom entries" ON health_symptom_entries FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own health goals" ON health_goals;
+CREATE POLICY "Users can manage own health goals" ON health_goals FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own goal checkins" ON health_goal_checkins;
+CREATE POLICY "Users can manage own goal checkins" ON health_goal_checkins FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================
 -- HEALTH CONVERSATIONS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS health_conversations (
@@ -313,10 +422,19 @@ CREATE TABLE IF NOT EXISTS health_documents (
   chunk_count integer DEFAULT 0,
   page_count integer DEFAULT 0,
   error_message text,
+  storage_path text,
+  tags text[] DEFAULT '{}',
+  version integer DEFAULT 1,
+  reprocessed_at timestamp with time zone,
   metadata jsonb DEFAULT '{}',
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE health_documents ADD COLUMN IF NOT EXISTS storage_path text;
+ALTER TABLE health_documents ADD COLUMN IF NOT EXISTS tags text[] DEFAULT '{}';
+ALTER TABLE health_documents ADD COLUMN IF NOT EXISTS version integer DEFAULT 1;
+ALTER TABLE health_documents ADD COLUMN IF NOT EXISTS reprocessed_at timestamp with time zone;
 
 ALTER TABLE health_documents ENABLE ROW LEVEL SECURITY;
 
@@ -444,6 +562,12 @@ CREATE INDEX IF NOT EXISTS projects_featured_idx ON projects(featured) WHERE fea
 CREATE INDEX IF NOT EXISTS health_conversations_user_id_idx ON health_conversations(user_id);
 CREATE INDEX IF NOT EXISTS health_body_composition_user_date_idx
   ON health_body_composition_readings(user_id, body_composition_measured_at DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS health_daily_logs_user_date_idx ON health_daily_logs(user_id, log_date DESC);
+CREATE INDEX IF NOT EXISTS health_food_entries_user_date_idx ON health_food_entries(user_id, log_date DESC);
+CREATE INDEX IF NOT EXISTS health_activity_entries_user_date_idx ON health_activity_entries(user_id, log_date DESC);
+CREATE INDEX IF NOT EXISTS health_symptom_entries_user_date_idx ON health_symptom_entries(user_id, log_date DESC, body_zone);
+CREATE INDEX IF NOT EXISTS health_goals_user_status_idx ON health_goals(user_id, status);
+CREATE INDEX IF NOT EXISTS health_goal_checkins_goal_date_idx ON health_goal_checkins(goal_id, checkin_date DESC);
 CREATE INDEX IF NOT EXISTS health_kb_user_idx ON health_knowledge_base(user_id);
 CREATE INDEX IF NOT EXISTS health_kb_conversation_idx ON health_knowledge_base(conversation_id);
 CREATE INDEX IF NOT EXISTS health_kb_content_type_idx ON health_knowledge_base(content_type);
@@ -492,6 +616,30 @@ CREATE TRIGGER update_health_conversations_updated_at BEFORE UPDATE ON health_co
 
 DROP TRIGGER IF EXISTS update_health_body_composition_updated_at ON health_body_composition_readings;
 CREATE TRIGGER update_health_body_composition_updated_at BEFORE UPDATE ON health_body_composition_readings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_daily_logs_updated_at ON health_daily_logs;
+CREATE TRIGGER update_health_daily_logs_updated_at BEFORE UPDATE ON health_daily_logs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_food_entries_updated_at ON health_food_entries;
+CREATE TRIGGER update_health_food_entries_updated_at BEFORE UPDATE ON health_food_entries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_activity_entries_updated_at ON health_activity_entries;
+CREATE TRIGGER update_health_activity_entries_updated_at BEFORE UPDATE ON health_activity_entries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_symptom_entries_updated_at ON health_symptom_entries;
+CREATE TRIGGER update_health_symptom_entries_updated_at BEFORE UPDATE ON health_symptom_entries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_goals_updated_at ON health_goals;
+CREATE TRIGGER update_health_goals_updated_at BEFORE UPDATE ON health_goals
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_health_goal_checkins_updated_at ON health_goal_checkins;
+CREATE TRIGGER update_health_goal_checkins_updated_at BEFORE UPDATE ON health_goal_checkins
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_health_documents_updated_at ON health_documents;

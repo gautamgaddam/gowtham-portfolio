@@ -22,20 +22,22 @@ async function getAccessToken() {
 
   // Return cached token if still valid (with 60s buffer)
   if (tokenCache.accessToken && tokenCache.expiresAt > now + 60000) {
+    spotifyApi.setAccessToken(tokenCache.accessToken);
     return tokenCache.accessToken;
   }
 
+  if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+    const error = new Error("Spotify API credentials are not configured.");
+    error.statusCode = 500;
+    throw error;
+  }
+
   try {
-    console.log("Attempting to get Spotify access token...");
-    console.log("Client ID exists:", !!process.env.SPOTIFY_CLIENT_ID);
-    console.log("Client Secret exists:", !!process.env.SPOTIFY_CLIENT_SECRET);
-    
     const data = await spotifyApi.clientCredentialsGrant();
     tokenCache.accessToken = data.body.access_token;
     tokenCache.expiresAt = now + data.body.expires_in * 1000;
 
     spotifyApi.setAccessToken(tokenCache.accessToken);
-    console.log("Successfully obtained Spotify access token");
     return tokenCache.accessToken;
   } catch (error) {
     console.error("Error getting Spotify access token:", error);
@@ -60,49 +62,81 @@ function validateInput(artistName) {
   return { valid: true };
 }
 
-// Compute average audio features
-function computeAverages(audioFeatures) {
-  const features = audioFeatures.filter((f) => f !== null);
+function normalizeFeatureAverages(averages) {
+  if (!averages || typeof averages !== "object") return null;
 
-  if (features.length === 0) {
-    return null;
+  const numericFields = [
+    "tempo",
+    "energy",
+    "valence",
+    "danceability",
+    "acousticness",
+    "instrumentalness",
+    "speechiness",
+    "liveness",
+  ];
+
+  return numericFields.reduce((acc, field) => {
+    const value = Number(averages[field]);
+    acc[field] = Number.isFinite(value) ? value : null;
+    return acc;
+  }, {});
+}
+
+async function getExternalFeatureAnalysis(artistName, artist) {
+  if (!process.env.MUSIC_FEATURES_API_URL) {
+    return {
+      source: "none",
+      status: "unavailable",
+      message:
+        "Spotify no longer provides reliable top-track audio features for this app. Configure MUSIC_FEATURES_API_URL to enrich artist analysis.",
+    };
   }
 
-  const sum = features.reduce(
-    (acc, feature) => ({
-      tempo: acc.tempo + feature.tempo,
-      energy: acc.energy + feature.energy,
-      valence: acc.valence + feature.valence,
-      danceability: acc.danceability + feature.danceability,
-      acousticness: acc.acousticness + feature.acousticness,
-      instrumentalness: acc.instrumentalness + feature.instrumentalness,
-      speechiness: acc.speechiness + feature.speechiness,
-      liveness: acc.liveness + feature.liveness,
-    }),
-    {
-      tempo: 0,
-      energy: 0,
-      valence: 0,
-      danceability: 0,
-      acousticness: 0,
-      instrumentalness: 0,
-      speechiness: 0,
-      liveness: 0,
-    },
-  );
+  try {
+    const response = await fetch(process.env.MUSIC_FEATURES_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.MUSIC_FEATURES_API_KEY
+          ? { Authorization: `Bearer ${process.env.MUSIC_FEATURES_API_KEY}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        artistName,
+        spotifyArtist: {
+          id: artist.id,
+          name: artist.name,
+          genres: artist.genres,
+          popularity: artist.popularity,
+          followers: artist.followers?.total || 0,
+        },
+      }),
+    });
 
-  const count = features.length;
+    if (!response.ok) {
+      throw new Error(`External feature API returned ${response.status}`);
+    }
 
-  return {
-    tempo: Math.round(sum.tempo / count),
-    energy: Math.round((sum.energy / count) * 100) / 100,
-    valence: Math.round((sum.valence / count) * 100) / 100,
-    danceability: Math.round((sum.danceability / count) * 100) / 100,
-    acousticness: Math.round((sum.acousticness / count) * 100) / 100,
-    instrumentalness: Math.round((sum.instrumentalness / count) * 100) / 100,
-    speechiness: Math.round((sum.speechiness / count) * 100) / 100,
-    liveness: Math.round((sum.liveness / count) * 100) / 100,
-  };
+    const data = await response.json();
+    const averages = normalizeFeatureAverages(data.averages);
+
+    return {
+      source: data.source || "external",
+      status: averages ? "ready" : "unavailable",
+      message: data.message || null,
+      averages,
+      tracks: Array.isArray(data.tracks) ? data.tracks : [],
+    };
+  } catch (error) {
+    console.error("External music feature analysis failed:", error);
+    return {
+      source: "external",
+      status: "failed",
+      message:
+        "External feature analysis failed. Artist metadata is still available.",
+    };
+  }
 }
 
 export default async function handler(req, res) {
@@ -124,7 +158,7 @@ export default async function handler(req, res) {
     await getAccessToken();
 
     // Search for artist
-    const searchResult = await spotifyApi.searchArtists(artistName, {
+    const searchResult = await spotifyApi.searchArtists(`artist:${artistName}`, {
       limit: 1,
     });
 
@@ -133,48 +167,7 @@ export default async function handler(req, res) {
     }
 
     const artist = searchResult.body.artists.items[0];
-
-    // Get artist's top tracks
-    const topTracksResult = await spotifyApi.getArtistTopTracks(
-      artist.id,
-      "US",
-    );
-
-    if (topTracksResult.body.tracks.length === 0) {
-      return res.status(404).json({ error: "No tracks found for this artist" });
-    }
-
-    const tracks = topTracksResult.body.tracks.slice(0, 10);
-
-    // Get audio features for all tracks
-    const trackIds = tracks.map((track) => track.id);
-    const audioFeaturesResult =
-      await spotifyApi.getAudioFeaturesForTracks(trackIds);
-
-    // Compute averages
-    const averages = computeAverages(audioFeaturesResult.body.audio_features);
-
-    // Format tracks data
-    const tracksData = tracks.map((track, idx) => {
-      const audioFeature = audioFeaturesResult.body.audio_features[idx];
-      return {
-        id: track.id,
-        name: track.name,
-        popularity: track.popularity,
-        previewUrl: track.preview_url,
-        albumImage: track.album.images[0]?.url,
-        audioFeatures: audioFeature
-          ? {
-              tempo: Math.round(audioFeature.tempo),
-              energy: audioFeature.energy,
-              valence: audioFeature.valence,
-              danceability: audioFeature.danceability,
-              key: audioFeature.key,
-              mode: audioFeature.mode,
-            }
-          : null,
-      };
-    });
+    const featureAnalysis = await getExternalFeatureAnalysis(artistName, artist);
 
     // Return comprehensive data
     return res.status(200).json({
@@ -184,10 +177,15 @@ export default async function handler(req, res) {
         image: artist.images[0]?.url,
         genres: artist.genres,
         popularity: artist.popularity,
-        followers: artist.followers.total,
+        followers: artist.followers?.total || 0,
       },
-      tracks: tracksData,
-      averages,
+      tracks: featureAnalysis.tracks || [],
+      averages: featureAnalysis.averages || null,
+      analysis: {
+        source: featureAnalysis.source,
+        status: featureAnalysis.status,
+        message: featureAnalysis.message,
+      },
     });
   } catch (error) {
     console.error("Spotify analysis API error:", error);
@@ -199,6 +197,12 @@ export default async function handler(req, res) {
         error:
           "Spotify authentication failed. Please check your API credentials in the Spotify Developer Dashboard.",
         details: error.body?.error?.message || "Forbidden or Unauthorized",
+      });
+    }
+
+    if (error.statusCode === 500) {
+      return res.status(500).json({
+        error: error.message,
       });
     }
 

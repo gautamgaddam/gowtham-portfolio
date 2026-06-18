@@ -22,6 +22,7 @@ const clientSideEmotionCache = createEmotionCache();
 export default function MyApp(props) {
   const { Component, emotionCache = clientSideEmotionCache, pageProps } = props;
   const router = useRouter();
+  const hideChrome = Component.hideChrome || pageProps.hideChrome;
   // Set dark mode based on media query
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [darkMode, setDarkMode] = useState(prefersDarkMode);
@@ -76,13 +77,17 @@ export default function MyApp(props) {
               {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
 
               <CssBaseline />
-              <Layout>
-                <GoogleAnalytics
-                  trackPageViews
-                  gaMeasurementId="G-2HSBG697FV"
-                />
+              <GoogleAnalytics
+                trackPageViews
+                gaMeasurementId="G-2HSBG697FV"
+              />
+              {hideChrome ? (
                 <Component {...pageProps} />
-              </Layout>
+              ) : (
+                <Layout>
+                  <Component {...pageProps} />
+                </Layout>
+              )}
             </ThemeProvider>
           </ColorModeContext.Provider>
         </AuthProvider>

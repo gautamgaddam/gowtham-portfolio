@@ -14,7 +14,7 @@ import { useAuth } from "../../lib/auth-context";
 import { hasPaidFeatureAccess } from "../../lib/access";
 import HealthChatbot from "../../components/HealthChatbot";
 
-export default function DashboardHealth() {
+function DashboardHealth() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
   const theme = useTheme();
@@ -158,3 +158,7 @@ export default function DashboardHealth() {
     </Box>
   );
 }
+
+DashboardHealth.hideChrome = true;
+
+export default DashboardHealth;

@@ -32,7 +32,8 @@
     "react-chartjs-2": "^5.2.0",
     "react-d3-radar": "^1.0.0-rc6",
     "react-dom": "^18.2.0",
-    "spotify-web-api-node": "^5.0.2"
+    "spotify-web-api-node": "^5.0.2",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

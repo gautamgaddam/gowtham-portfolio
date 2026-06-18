@@ -8,6 +8,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const DEFAULT_STABILITY_AUDIO_ENDPOINT =
+  "https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio";
+
 // Input validation
 function validateInput(prompt, style, tempo, key) {
   if (!prompt || typeof prompt !== "string") {
@@ -48,6 +51,129 @@ When generating production notes, include:
 7. **Lyrics Theme**: If applicable, suggest lyrical themes and structure
 
 Be specific and creative. Consider the artist's style and the musical parameters provided.`;
+
+function getAudioDuration() {
+  const duration = Number(process.env.STABILITY_AUDIO_DURATION_SECONDS || 30);
+
+  if (!Number.isFinite(duration)) return 30;
+  return Math.min(Math.max(Math.round(duration), 10), 180);
+}
+
+function buildAudioPrompt({
+  prompt,
+  style,
+  tempo,
+  key,
+  artistContext,
+  productionNotes,
+}) {
+  return [
+    `${style} instrumental background music, ${tempo} BPM, ${key}.`,
+    `Title idea: ${productionNotes.title}.`,
+    `User direction: ${prompt}.`,
+    artistContext ? `Artist influence: ${artistContext}.` : null,
+    `Arrangement: ${productionNotes.structure}.`,
+    `Instrumentation: ${productionNotes.instrumentation?.join(", ")}.`,
+    `Rhythm: ${productionNotes.rhythmicPattern}.`,
+    "Instrumental BGM only, no vocals, no spoken words, polished studio mix.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function extensionForAudioContentType(contentType) {
+  if (contentType.includes("wav")) return "wav";
+  if (contentType.includes("mpeg") || contentType.includes("mp3")) return "mp3";
+  if (contentType.includes("ogg")) return "ogg";
+  return "mp3";
+}
+
+async function generateStableAudio(audioPrompt) {
+  if (!process.env.STABILITY_API_KEY) {
+    return {
+      provider: "stability",
+      status: "unavailable",
+      message:
+        "Production notes and lyrics are ready. Add STABILITY_API_KEY to generate real music audio.",
+      audioUrl: null,
+    };
+  }
+
+  const endpoint =
+    process.env.STABILITY_AUDIO_ENDPOINT || DEFAULT_STABILITY_AUDIO_ENDPOINT;
+  const outputFormat = process.env.STABILITY_AUDIO_OUTPUT_FORMAT || "mp3";
+  const formData = new FormData();
+
+  formData.append("prompt", audioPrompt);
+  formData.append("output_format", outputFormat);
+  formData.append("duration", String(getAudioDuration()));
+  formData.append("steps", process.env.STABILITY_AUDIO_STEPS || "30");
+  formData.append("cfg_scale", process.env.STABILITY_AUDIO_CFG_SCALE || "7");
+  formData.append("none", new Blob([""]));
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${process.env.STABILITY_API_KEY}`,
+      accept: "audio/*",
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    console.error("Stability audio generation failed:", {
+      status: response.status,
+      details,
+    });
+
+    return {
+      provider: "stability",
+      status: response.status === 429 ? "rate_limited" : "failed",
+      message:
+        response.status === 429
+          ? "Audio generation is rate limited. Production notes and lyrics are still ready."
+          : "Audio generation failed. Production notes and lyrics are still ready.",
+      audioUrl: null,
+    };
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const data = await response.json();
+    const audioBase64 = data.audio || data.output?.audio;
+
+    if (!audioBase64) {
+      return {
+        provider: "stability",
+        status: "failed",
+        message:
+          "Audio generation returned an unsupported response shape. Production notes and lyrics are still ready.",
+        audioUrl: null,
+      };
+    }
+
+    return {
+      provider: "stability",
+      status: "ready",
+      message: "Music audio generated successfully.",
+      audioUrl: `data:audio/${outputFormat};base64,${audioBase64}`,
+      seed: data.seed || null,
+      finishReason: data.finish_reason || null,
+    };
+  }
+
+  const audioBuffer = Buffer.from(await response.arrayBuffer());
+  const extension = extensionForAudioContentType(contentType);
+
+  return {
+    provider: "stability",
+    status: "ready",
+    message: "Music audio generated successfully.",
+    audioUrl: `data:${contentType || `audio/${extension}`};base64,${audioBuffer.toString("base64")}`,
+  };
+}
 
 export default async function handler(req, res) {
   // Only allow POST
@@ -117,32 +243,29 @@ Provide comprehensive production notes in JSON format with the following structu
     });
 
     const generatedLyrics = lyricsCompletion.choices[0].message.content;
+    const audioPrompt = buildAudioPrompt({
+      prompt,
+      style,
+      tempo,
+      key,
+      artistContext,
+      productionNotes,
+    });
 
-    // TODO: Wire Suno API here for actual audio generation
-    // Expected Suno API call shape:
-    // const sunoResponse = await fetch('https://api.suno.ai/v1/generate', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.SUNO_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     prompt: `${style} song, ${tempo} BPM, ${productionNotes.title}`,
-    //     lyrics: generatedLyrics,
-    //     duration: 180, // 3 minutes
-    //     instrumental: false,
-    //   }),
-    // });
-    // const sunoData = await sunoResponse.json();
-    // audioUrl = sunoData.audio_url;
+    const audioGeneration = await generateStableAudio(audioPrompt);
 
     return res.status(200).json({
       productionNotes,
       generatedLyrics,
-      audioUrl: null, // Will be populated when Suno API is integrated
-      status: "notes_ready",
-      message:
-        "Production notes and lyrics generated. Audio generation coming soon!",
+      audioUrl: audioGeneration.audioUrl,
+      audioPrompt,
+      audioProvider: audioGeneration.provider,
+      audioGeneration,
+      status:
+        audioGeneration.status === "ready"
+          ? "audio_ready"
+          : "notes_ready_audio_unavailable",
+      message: audioGeneration.message,
     });
   } catch (error) {
     console.error("Music generation API error:", error);

@@ -15,6 +15,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
+const ADMIN_EMAIL = "gautammaddyson@gmail.com";
 
 // Helper to extract user from JWT token
 async function getUserFromToken(req) {
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
 
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
-    // Call the RPC function to search
+    // Call the RPC function to search user conversation knowledge
     const { data: results, error } = await supabaseAdmin.rpc(
       "match_health_knowledge",
       {
@@ -70,9 +71,34 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
+    const { data: documentResults, error: documentError } = await supabaseAdmin.rpc(
+      "match_health_document_chunks",
+      {
+        query_embedding: queryEmbedding,
+        match_threshold: Math.min(threshold, 0.65),
+        match_count: limit,
+        include_admin_only: user.email?.toLowerCase() === ADMIN_EMAIL,
+      },
+    );
+
+    if (documentError) throw documentError;
+
     return res.status(200).json({
-      results: results || [],
-      count: results?.length || 0,
+      results: [
+        ...(results || []),
+        ...(documentResults || []).map((item) => ({
+          ...item,
+          content_type: "document_chunk",
+          metadata: {
+            title: item.title,
+            author: item.author,
+            page_start: item.page_start,
+            page_end: item.page_end,
+            chapter: item.chapter,
+          },
+        })),
+      ],
+      count: (results?.length || 0) + (documentResults?.length || 0),
     });
 
   } catch (error) {

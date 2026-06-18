@@ -15,7 +15,8 @@
       "OPENAI_API_KEY": "@openai_api_key",
       "SPOTIFY_CLIENT_ID": "@spotify_client_id",
       "SPOTIFY_CLIENT_SECRET": "@spotify_client_secret",
-      "ELEVENLABS_API_KEY": "@elevenlabs_api_key"
+      "ELEVENLABS_API_KEY": "@elevenlabs_api_key",
+      "STABILITY_API_KEY": "@stability_api_key"
     }
   }
 }

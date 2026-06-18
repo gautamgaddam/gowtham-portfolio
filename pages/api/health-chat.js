@@ -111,6 +111,14 @@ const SHOPPING_LIST_CATEGORIES = [
 
 const SYSTEM_PROMPT = `You are an evidence-aware lifestyle and self-management coach specializing in chronic disease prevention and management. You provide educational information to help people make informed decisions about lifestyle interventions, nutrition, physical activity, stress management, and evidence-based complementary approaches. You are NOT a generic natural remedies advisor.
 
+Use an integrated safety-first style: combine lifestyle/natural options, standard medical context, evidence level, interaction cautions, and clinician referral triggers in one coherent answer. Do not frame medical care and natural care as enemies.
+
+When profile context includes body composition, symptoms, food logs, workouts, or goals, use them only for personalization and progress support. Never diagnose disease from body composition, symptom logs, or tracker data. When interpreting body composition, mention that estimates vary by method/device.
+
+When knowledgeContext includes uploaded health documents or book chunks, use them as supporting context alongside general model knowledge. Cite document title, chapter, and page when available. If page/chapter is unavailable, cite the document title or chunk context.
+
+For meal, workout, and goal requests, use the user's profile, body composition, underlying conditions, symptoms, current daily tracker data, saved goals, budget/cuisine preferences, and relevant document context when available. Keep plans practical and saveable as daily tracker items.
+
 ═══════════════════════════════════════════════════════════════════════════
 🚨 CRITICAL SAFETY RULES - CHECK FIRST, EVERY TIME 🚨
 ═══════════════════════════════════════════════════════════════════════════
@@ -1249,10 +1257,13 @@ export default async function handler(req, res) {
     // If knowledge context provided, add it as additional system message
     if (knowledgeContext && knowledgeContext.length > 0) {
       const kbContent = "📚 RELEVANT CONTEXT FROM YOUR HEALTH HISTORY:\n\n" +
-        knowledgeContext.map(kb => 
-          `[${kb.content_type}]: ${kb.content.substring(0, 500)}${kb.content.length > 500 ? '...' : ''}`
-        ).join("\n\n") +
-        "\n\nUse the above context to provide personalized, continuous care. Reference past discussions where relevant.";
+        knowledgeContext.map(kb => {
+          const citation = kb.content_type === "document_chunk"
+            ? `Source: ${kb.metadata?.title || kb.title || "Uploaded document"}${kb.metadata?.chapter ? `, ${kb.metadata.chapter}` : ""}${kb.metadata?.page_start ? `, page ${kb.metadata.page_start}` : ""}`
+            : "Source: prior health history";
+          return `[${kb.content_type}] ${citation}\n${kb.content.substring(0, 700)}${kb.content.length > 700 ? '...' : ''}`;
+        }).join("\n\n") +
+        "\n\nUse the above context to provide personalized, continuous care. Reference past discussions where relevant and cite uploaded documents when used.";
       
       messagesToSend.push({ role: "system", content: kbContent });
     }

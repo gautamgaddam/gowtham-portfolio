@@ -73,6 +73,16 @@ ELEVENLABS_API_KEY=your_existing_elevenlabs_key
 SPOTIFY_CLIENT_ID=your_existing_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_existing_spotify_client_secret
 
+# Stability AI music generation
+STABILITY_API_KEY=your_stability_api_key
+STABILITY_AUDIO_ENDPOINT=https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio
+STABILITY_AUDIO_DURATION_SECONDS=30
+STABILITY_AUDIO_OUTPUT_FORMAT=mp3
+
+# Optional external music feature enrichment
+MUSIC_FEATURES_API_URL=
+MUSIC_FEATURES_API_KEY=
+
 # Pinecone Vector DB (we'll set this up in Phase 3)
 PINECONE_API_KEY=add_later
 PINECONE_ENVIRONMENT=add_later
