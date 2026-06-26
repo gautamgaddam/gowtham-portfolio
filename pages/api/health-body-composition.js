@@ -98,6 +98,10 @@ export default async function handler(req, res) {
         .order("body_composition_measured_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
 
+      if (error?.code === "PGRST205") {
+        return res.status(200).json([]);
+      }
+
       if (error) throw error;
       return res.status(200).json(data || []);
     }

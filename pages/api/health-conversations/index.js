@@ -49,14 +49,24 @@ export default async function handler(req, res) {
       if (countError) throw countError;
 
       // Get paginated conversations
-      const { data: conversations, error } = await supabaseAdmin
+      const { data: conversationRows, error } = await supabaseAdmin
         .from("health_conversations")
-        .select("id, title, summary, message_count, created_at, updated_at")
+        .select("id, title, messages, created_at, updated_at")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) throw error;
+      const conversations = (conversationRows || []).map((conversation) => ({
+        id: conversation.id,
+        title: conversation.title,
+        summary: "",
+        message_count: Array.isArray(conversation.messages)
+          ? conversation.messages.length
+          : 0,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+      }));
 
       // Get current usage stats for this user
       const today = new Date();
@@ -85,7 +95,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         conversations: conversations || [],
         total: count || 0,
-        hasMore: offset + (conversations?.length || 0) < (count || 0),
+        hasMore: offset + conversations.length < (count || 0),
         usage: {
           count: usage?.usage_count || 0,
           limit: monthlyLimit,
@@ -97,7 +107,7 @@ export default async function handler(req, res) {
       // Create new conversation
       const { title } = req.body;
 
-      const { data: conversation, error } = await supabaseAdmin
+      let { data: conversation, error } = await supabaseAdmin
         .from("health_conversations")
         .insert({
           user_id: user.id,
@@ -107,6 +117,21 @@ export default async function handler(req, res) {
         })
         .select()
         .single();
+
+      if (error?.code === "42703") {
+        const retry = await supabaseAdmin
+          .from("health_conversations")
+          .insert({
+            user_id: user.id,
+            title: title || "New Conversation",
+            messages: [],
+          })
+          .select()
+          .single();
+
+        conversation = retry.data;
+        error = retry.error;
+      }
 
       if (error) throw error;
 

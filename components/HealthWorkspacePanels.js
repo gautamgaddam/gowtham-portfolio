@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -21,7 +22,183 @@ import { useAuth } from "../lib/auth-context";
 import { calculateBodyComposition } from "../lib/body-composition";
 
 const ADMIN_EMAIL = "gautammaddyson@gmail.com";
-const BODY_ZONES = ["head", "chest", "abdomen", "arms", "legs", "back"];
+const BODY_SYSTEMS = [
+  { id: "surface", label: "Surface body", color: 0x18c7c9 },
+  { id: "skeletal", label: "Skeletal", color: 0xe8eef7 },
+  { id: "muscular", label: "Muscular", color: 0xff7043 },
+  { id: "nervous", label: "Nervous", color: 0xffd54f },
+  { id: "cardiovascular", label: "Cardiovascular", color: 0xef5350 },
+  { id: "respiratory", label: "Respiratory", color: 0x64b5f6 },
+  { id: "digestive", label: "Digestive", color: 0xffb74d },
+  { id: "endocrine", label: "Endocrine", color: 0xba68c8 },
+  { id: "urinary", label: "Urinary", color: 0x4dd0e1 },
+  { id: "skin", label: "Skin", color: 0xa5d6a7 },
+];
+
+const BODY_REGIONS = [
+  { id: "head", label: "Head / brain", trackerZone: "head" },
+  { id: "neck", label: "Neck / throat", trackerZone: "head" },
+  { id: "chest", label: "Chest / heart / lungs", trackerZone: "chest" },
+  { id: "abdomen", label: "Abdomen / digestive", trackerZone: "abdomen" },
+  { id: "pelvis", label: "Pelvis / urinary", trackerZone: "abdomen" },
+  { id: "back", label: "Back / spine", trackerZone: "back" },
+  { id: "left-arm", label: "Left arm", trackerZone: "arms" },
+  { id: "right-arm", label: "Right arm", trackerZone: "arms" },
+  { id: "left-leg", label: "Left leg", trackerZone: "legs" },
+  { id: "right-leg", label: "Right leg", trackerZone: "legs" },
+];
+
+const BODY_ZONES = ["general", ...BODY_REGIONS.map((region) => region.trackerZone)]
+  .filter((zone, index, zones) => zones.indexOf(zone) === index);
+
+const PROFILE_SIGNAL_RULES = [
+  {
+    match: ["hypertension", "high blood pressure", "cvd", "coronary", "heart", "stroke", "cholesterol", "triglycerides"],
+    system: "cardiovascular",
+    region: "chest",
+    label: "Cardiometabolic profile",
+  },
+  {
+    match: ["asthma", "copd", "sleep apnea"],
+    system: "respiratory",
+    region: "chest",
+    label: "Breathing and sleep profile",
+  },
+  {
+    match: ["type 2 diabetes", "type 1 diabetes", "prediabetes", "metabolic", "pcos", "thyroid"],
+    system: "endocrine",
+    region: "abdomen",
+    label: "Metabolic profile",
+  },
+  {
+    match: ["ibd", "ibs", "gerd", "celiac", "fatty liver", "nafld"],
+    system: "digestive",
+    region: "abdomen",
+    label: "Digestive profile",
+  },
+  {
+    match: ["kidney", "urinary"],
+    system: "urinary",
+    region: "pelvis",
+    label: "Kidney and urinary profile",
+  },
+  {
+    match: ["depression", "anxiety", "adhd", "ptsd", "insomnia", "migraine"],
+    system: "nervous",
+    region: "head",
+    label: "Brain, sleep, and stress profile",
+  },
+  {
+    match: ["chronic pain", "arthritis", "osteoarthritis", "osteoporosis", "lupus", "rheumatoid", "psoriatic"],
+    system: "muscular",
+    region: "back",
+    label: "Pain, joints, and mobility profile",
+  },
+  {
+    match: ["endometriosis"],
+    system: "endocrine",
+    region: "pelvis",
+    label: "Hormonal and pelvic profile",
+  },
+  {
+    match: ["anemia"],
+    system: "cardiovascular",
+    region: "chest",
+    label: "Energy and blood profile",
+  },
+];
+
+const systemLabel = (id) =>
+  BODY_SYSTEMS.find((system) => system.id === id)?.label || "Surface body";
+
+const regionLabel = (id) =>
+  BODY_REGIONS.find((region) => region.id === id)?.label || id;
+
+const regionTrackerZone = (id) =>
+  BODY_REGIONS.find((region) => region.id === id)?.trackerZone || "general";
+
+const highlightKey = (region, system) => `${system}:${region}`;
+
+const normalizeList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getHealthProfileAvatarSignals = (profile = {}, body = {}) => {
+  const conditions = normalizeList(profile.conditions)
+    .filter((condition) => condition && condition.toLowerCase() !== "none");
+  const goals = normalizeList(profile.goals);
+  const text = [...conditions, ...goals].join(" ").toLowerCase();
+  const signals = [];
+
+  PROFILE_SIGNAL_RULES.forEach((rule) => {
+    if (rule.match.some((keyword) => text.includes(keyword))) {
+      signals.push({
+        source: "profile",
+        system: rule.system,
+        region: rule.region,
+        label: rule.label,
+        detail: conditions.filter((condition) =>
+          rule.match.some((keyword) => condition.toLowerCase().includes(keyword)),
+        ).join(", "),
+      });
+    }
+  });
+
+  if (body.bmi && body.bmi >= 30) {
+    signals.push({
+      source: "body-composition",
+      system: "endocrine",
+      region: "abdomen",
+      label: "Weight and metabolic risk context",
+      detail: `BMI ${body.bmi} (${body.bmiCategory})`,
+    });
+  } else if (body.bmi && body.bmi < 18.5) {
+    signals.push({
+      source: "body-composition",
+      system: "muscular",
+      region: "abdomen",
+      label: "Low weight context",
+      detail: `BMI ${body.bmi} (${body.bmiCategory})`,
+    });
+  }
+
+  if (body.bodyFatCategory === "Elevated estimate") {
+    signals.push({
+      source: "body-composition",
+      system: "endocrine",
+      region: "abdomen",
+      label: "Elevated body fat estimate",
+      detail: `${body.bodyFatPercent}% body fat`,
+    });
+  }
+
+  if (body.weightToMuscleContext === "Lower reported muscle share") {
+    signals.push({
+      source: "body-composition",
+      system: "muscular",
+      region: "left-leg",
+      label: "Strength and muscle context",
+      detail: body.weightToMuscleContext,
+    });
+    signals.push({
+      source: "body-composition",
+      system: "muscular",
+      region: "right-leg",
+      label: "Strength and muscle context",
+      detail: body.weightToMuscleContext,
+    });
+  }
+
+  return signals.filter(
+    (signal, index, list) =>
+      list.findIndex((item) => item.system === signal.system && item.region === signal.region && item.label === signal.label) === index,
+  );
+};
 
 function todayIso() {
   return new Date().toISOString().split("T")[0];
@@ -55,11 +232,24 @@ export function BodyDashboardPanel({
   bodyCompositionReadings,
   trackerData,
   onZoneSelect,
+  onAskCoach,
+  onFocusChange,
 }) {
   const canvasRef = useRef(null);
-  const selectedRef = useRef(null);
+  const authedFetch = useAuthedFetch();
   const symptoms = trackerData?.symptoms || [];
-  const body = calculateBodyComposition(userProfile || {});
+  const body = useMemo(
+    () => calculateBodyComposition(userProfile || {}),
+    [userProfile],
+  );
+  const [selectedSystem, setSelectedSystem] = useState("surface");
+  const [selectedRegions, setSelectedRegions] = useState([]);
+  const [manualHighlights, setManualHighlights] = useState([]);
+  const [focusedRegion, setFocusedRegion] = useState("chest");
+  const [viewRotation, setViewRotation] = useState(0);
+  const [zoom, setZoom] = useState(7);
+  const [saveStatus, setSaveStatus] = useState("");
+
   const zoneCounts = useMemo(
     () =>
       symptoms.reduce((acc, entry) => {
@@ -68,6 +258,122 @@ export function BodyDashboardPanel({
       }, {}),
     [symptoms],
   );
+  const profileSignals = useMemo(
+    () => getHealthProfileAvatarSignals(userProfile || {}, body),
+    [body, userProfile],
+  );
+  const signalCountsByRegion = useMemo(
+    () =>
+      profileSignals.reduce((acc, signal) => {
+        acc[signal.region] = (acc[signal.region] || 0) + 1;
+        return acc;
+      }, {}),
+    [profileSignals],
+  );
+  const focusedSignals = useMemo(
+    () =>
+      profileSignals.filter(
+        (signal) => signal.region === focusedRegion || signal.system === selectedSystem,
+      ),
+    [focusedRegion, profileSignals, selectedSystem],
+  );
+  const selectedFocus = useMemo(
+    () => ({
+      system: selectedSystem,
+      systemLabel: systemLabel(selectedSystem),
+      region: focusedRegion,
+      regionLabel: regionLabel(focusedRegion),
+      highlights: manualHighlights,
+      profileSignals: focusedSignals,
+      bodySummary: {
+        bmi: body.bmi,
+        bmiCategory: body.bmiCategory,
+        bodyFatCategory: body.bodyFatCategory,
+        weightToMuscleContext: body.weightToMuscleContext,
+      },
+    }),
+    [body, focusedRegion, focusedSignals, manualHighlights, selectedSystem],
+  );
+
+  useEffect(() => {
+    const storedHighlights = trackerData?.log?.summary?.avatar_highlights;
+    if (Array.isArray(storedHighlights)) {
+      setManualHighlights(storedHighlights);
+      if (storedHighlights[0]) {
+        setFocusedRegion(storedHighlights[0].region);
+        setSelectedSystem(storedHighlights[0].system);
+      }
+    }
+  }, [trackerData?.log?.id]);
+
+  useEffect(() => {
+    onFocusChange?.(selectedFocus);
+  }, [onFocusChange, selectedFocus]);
+
+  const persistHighlights = async (nextHighlights) => {
+    try {
+      const currentLog = trackerData?.log || {};
+      await authedFetch("/api/health-daily-log", {
+        method: "POST",
+        body: JSON.stringify({
+          logDate: currentLog.log_date || todayIso(),
+          mood: currentLog.mood || "",
+          sleepHours: currentLog.sleep_hours ?? "",
+          waterLiters: currentLog.water_liters ?? "",
+          energyLevel: currentLog.energy_level ?? "",
+          stressLevel: currentLog.stress_level ?? "",
+          notes: currentLog.notes || "",
+          summary: {
+            ...(currentLog.summary || {}),
+            avatar_highlights: nextHighlights,
+          },
+        }),
+      });
+      setSaveStatus("Saved to today's health log");
+    } catch (error) {
+      setSaveStatus("Saved locally for this session");
+    }
+  };
+
+  const toggleHighlight = (region, system = selectedSystem) => {
+    const key = highlightKey(region, system);
+    const exists = manualHighlights.some(
+      (item) => highlightKey(item.region, item.system) === key,
+    );
+    const nextHighlights = exists
+      ? manualHighlights.filter((item) => highlightKey(item.region, item.system) !== key)
+      : [
+          ...manualHighlights,
+          {
+            region,
+            system,
+            label: `${systemLabel(system)} focus: ${regionLabel(region)}`,
+            created_at: new Date().toISOString(),
+          },
+        ];
+
+    setFocusedRegion(region);
+    setSelectedSystem(system);
+    setSelectedRegions((current) =>
+      current.includes(region)
+        ? current.filter((item) => item !== region)
+        : [...current, region],
+    );
+    setManualHighlights(nextHighlights);
+    onZoneSelect?.(regionTrackerZone(region));
+    persistHighlights(nextHighlights);
+  };
+
+  const clearHighlights = () => {
+    setSelectedRegions([]);
+    setManualHighlights([]);
+    setSaveStatus("");
+    persistHighlights([]);
+  };
+
+  const askCoach = () => {
+    onAskCoach?.(selectedFocus);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,7 +381,7 @@ export function BodyDashboardPanel({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(0, 1.2, 7);
+    camera.position.set(0, 1.15, zoom);
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
@@ -84,38 +390,179 @@ export function BodyDashboardPanel({
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x1e88e5,
-      roughness: 0.42,
-      metalness: 0.15,
+    const regionMeshes = [];
+    const baseMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0ea5a8,
+      roughness: 0.48,
+      metalness: 0.08,
+      transparent: true,
+      opacity: 0.72,
     });
-    const hotMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff5252,
+    const selectedMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00e5ff,
+      emissive: 0x004d5c,
+      roughness: 0.35,
+      metalness: 0.12,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const symptomMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff7043,
+      emissive: 0x4a1408,
+      roughness: 0.45,
+      metalness: 0.08,
+      transparent: true,
+      opacity: 0.86,
+    });
+    const profileMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8b5cf6,
+      emissive: 0x2f155f,
       roughness: 0.4,
       metalness: 0.1,
+      transparent: true,
+      opacity: 0.84,
     });
+    const overlayMaterial = (system, opacity = 0.82) =>
+      new THREE.MeshStandardMaterial({
+        color: BODY_SYSTEMS.find((item) => item.id === system)?.color || 0xffffff,
+        roughness: 0.5,
+        transparent: true,
+        opacity,
+      });
+    const lineMaterial = (system) =>
+      new THREE.LineBasicMaterial({
+        color: BODY_SYSTEMS.find((item) => item.id === system)?.color || 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+      });
 
-    const addPart = (name, geometry, position, scale = [1, 1, 1]) => {
-      const mesh = new THREE.Mesh(geometry, zoneCounts[name] ? hotMaterial : material);
-      mesh.name = name;
+    const isRegionHighlighted = (region) =>
+      manualHighlights.some((item) => item.region === region) ||
+      selectedRegions.includes(region);
+
+    const materialForRegion = (region) => {
+      const trackerZone = regionTrackerZone(region);
+      if (isRegionHighlighted(region)) return selectedMaterial;
+      if (zoneCounts[trackerZone]) return symptomMaterial;
+      if (signalCountsByRegion[region]) return profileMaterial;
+      return baseMaterial;
+    };
+
+    const addRegion = (region, geometry, position, scale = [1, 1, 1]) => {
+      const mesh = new THREE.Mesh(geometry, materialForRegion(region));
+      mesh.name = region;
+      mesh.userData = { region, system: selectedSystem };
       mesh.position.set(...position);
       mesh.scale.set(...scale);
       scene.add(mesh);
+      regionMeshes.push(mesh);
       return mesh;
     };
 
-    addPart("head", new THREE.SphereGeometry(0.45, 32, 32), [0, 2.65, 0]);
-    addPart("chest", new THREE.CapsuleGeometry(0.62, 1.1, 10, 24), [0, 1.55, 0], [1, 1, 0.9]);
-    addPart("abdomen", new THREE.CapsuleGeometry(0.55, 0.9, 10, 24), [0, 0.55, 0], [1, 1, 0.9]);
-    addPart("arms", new THREE.CapsuleGeometry(0.18, 1.6, 8, 16), [-0.95, 1.2, 0], [1, 1, 1]);
-    addPart("arms", new THREE.CapsuleGeometry(0.18, 1.6, 8, 16), [0.95, 1.2, 0], [1, 1, 1]);
-    addPart("legs", new THREE.CapsuleGeometry(0.23, 1.75, 8, 16), [-0.32, -1.15, 0]);
-    addPart("legs", new THREE.CapsuleGeometry(0.23, 1.75, 8, 16), [0.32, -1.15, 0]);
-    addPart("back", new THREE.TorusGeometry(0.8, 0.04, 12, 60), [0, 1.1, -0.18], [1, 1.4, 1]);
+    const root = new THREE.Group();
+    root.rotation.y = viewRotation;
+    scene.add(root);
+
+    const addToRoot = (object) => {
+      root.add(object);
+      return object;
+    };
+
+    [
+      addRegion("head", new THREE.SphereGeometry(0.45, 32, 32), [0, 2.65, 0]),
+      addRegion("neck", new THREE.CapsuleGeometry(0.17, 0.32, 8, 16), [0, 2.15, 0]),
+      addRegion("chest", new THREE.CapsuleGeometry(0.66, 1.05, 10, 28), [0, 1.42, 0], [1, 1, 0.9]),
+      addRegion("abdomen", new THREE.CapsuleGeometry(0.55, 0.82, 10, 28), [0, 0.45, 0], [1, 1, 0.92]),
+      addRegion("pelvis", new THREE.SphereGeometry(0.5, 24, 16), [0, -0.2, 0], [1.18, 0.55, 0.82]),
+      addRegion("back", new THREE.TorusGeometry(0.8, 0.035, 12, 60), [0, 1.05, -0.24], [1, 1.4, 1]),
+      addRegion("left-arm", new THREE.CapsuleGeometry(0.17, 1.55, 8, 16), [-0.95, 1.08, 0]),
+      addRegion("right-arm", new THREE.CapsuleGeometry(0.17, 1.55, 8, 16), [0.95, 1.08, 0]),
+      addRegion("left-leg", new THREE.CapsuleGeometry(0.22, 1.7, 8, 16), [-0.32, -1.15, 0]),
+      addRegion("right-leg", new THREE.CapsuleGeometry(0.22, 1.7, 8, 16), [0.32, -1.15, 0]),
+    ].forEach((mesh) => addToRoot(mesh));
+
+    const addMesh = (system, geometry, position, scale = [1, 1, 1], opacity = 0.82) => {
+      const mesh = new THREE.Mesh(geometry, overlayMaterial(system, opacity));
+      mesh.position.set(...position);
+      mesh.scale.set(...scale);
+      addToRoot(mesh);
+      return mesh;
+    };
+
+    const addLine = (system, points) => {
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        points.map((point) => new THREE.Vector3(...point)),
+      );
+      addToRoot(new THREE.Line(geometry, lineMaterial(system)));
+    };
+
+    if (selectedSystem === "skeletal") {
+      addMesh("skeletal", new THREE.SphereGeometry(0.25, 18, 18), [0, 2.65, 0], [1, 1.15, 0.8], 0.9);
+      addMesh("skeletal", new THREE.CylinderGeometry(0.06, 0.06, 2.7, 12), [0, 0.95, -0.05]);
+      addMesh("skeletal", new THREE.BoxGeometry(1.25, 0.08, 0.08), [0, 1.75, 0]);
+      addMesh("skeletal", new THREE.BoxGeometry(0.08, 1.55, 0.08), [-0.95, 1.05, 0]);
+      addMesh("skeletal", new THREE.BoxGeometry(0.08, 1.55, 0.08), [0.95, 1.05, 0]);
+      addMesh("skeletal", new THREE.BoxGeometry(0.08, 1.65, 0.08), [-0.32, -1.15, 0]);
+      addMesh("skeletal", new THREE.BoxGeometry(0.08, 1.65, 0.08), [0.32, -1.15, 0]);
+    }
+
+    if (selectedSystem === "muscular") {
+      addMesh("muscular", new THREE.CapsuleGeometry(0.42, 1.15, 8, 18), [-0.22, 1.05, 0.08], [0.9, 1, 0.65], 0.78);
+      addMesh("muscular", new THREE.CapsuleGeometry(0.42, 1.15, 8, 18), [0.22, 1.05, 0.08], [0.9, 1, 0.65], 0.78);
+      addMesh("muscular", new THREE.CapsuleGeometry(0.12, 1.55, 8, 12), [-0.95, 1.08, 0.08], [1.1, 1, 1.1], 0.84);
+      addMesh("muscular", new THREE.CapsuleGeometry(0.12, 1.55, 8, 12), [0.95, 1.08, 0.08], [1.1, 1, 1.1], 0.84);
+      addMesh("muscular", new THREE.CapsuleGeometry(0.16, 1.65, 8, 12), [-0.32, -1.15, 0.08], [1, 1, 1], 0.84);
+      addMesh("muscular", new THREE.CapsuleGeometry(0.16, 1.65, 8, 12), [0.32, -1.15, 0.08], [1, 1, 1], 0.84);
+    }
+
+    if (selectedSystem === "nervous") {
+      addMesh("nervous", new THREE.SphereGeometry(0.22, 20, 20), [0, 2.66, 0.05], [1.15, 0.8, 0.95], 0.9);
+      addLine("nervous", [[0, 2.35, 0.08], [0, 1.5, 0.08], [0, 0.2, 0.08], [0, -1.6, 0.08]]);
+      addLine("nervous", [[0, 1.45, 0.08], [-0.95, 1.05, 0.08]]);
+      addLine("nervous", [[0, 1.45, 0.08], [0.95, 1.05, 0.08]]);
+      addLine("nervous", [[0, 0.05, 0.08], [-0.32, -1.8, 0.08]]);
+      addLine("nervous", [[0, 0.05, 0.08], [0.32, -1.8, 0.08]]);
+    }
+
+    if (selectedSystem === "cardiovascular") {
+      addMesh("cardiovascular", new THREE.SphereGeometry(0.18, 24, 18), [-0.12, 1.35, 0.28], [1, 1.15, 0.8], 0.95);
+      addLine("cardiovascular", [[-0.12, 1.35, 0.25], [0, 1.8, 0.18], [0, 2.35, 0.12]]);
+      addLine("cardiovascular", [[-0.12, 1.35, 0.25], [0, 0.2, 0.15], [0, -1.8, 0.15]]);
+      addLine("cardiovascular", [[0, 1.45, 0.18], [-0.95, 1.05, 0.12]]);
+      addLine("cardiovascular", [[0, 1.45, 0.18], [0.95, 1.05, 0.12]]);
+    }
+
+    if (selectedSystem === "respiratory") {
+      addMesh("respiratory", new THREE.CapsuleGeometry(0.23, 0.65, 12, 18), [-0.28, 1.42, 0.25], [1, 1.2, 0.55], 0.78);
+      addMesh("respiratory", new THREE.CapsuleGeometry(0.23, 0.65, 12, 18), [0.28, 1.42, 0.25], [1, 1.2, 0.55], 0.78);
+      addMesh("respiratory", new THREE.CylinderGeometry(0.055, 0.055, 0.78, 14), [0, 2.0, 0.25], [1, 1, 1], 0.9);
+    }
+
+    if (selectedSystem === "digestive") {
+      addMesh("digestive", new THREE.SphereGeometry(0.24, 24, 16), [-0.22, 0.62, 0.28], [1.25, 0.8, 0.75], 0.86);
+      addMesh("digestive", new THREE.TorusKnotGeometry(0.28, 0.045, 80, 8), [0.06, 0.08, 0.28], [1.05, 0.8, 0.7], 0.86);
+    }
+
+    if (selectedSystem === "endocrine") {
+      addMesh("endocrine", new THREE.SphereGeometry(0.08, 16, 12), [0, 2.58, 0.28], [1, 1, 1], 0.95);
+      addMesh("endocrine", new THREE.SphereGeometry(0.08, 16, 12), [0, 2.05, 0.28], [1.8, 0.8, 0.8], 0.95);
+      addMesh("endocrine", new THREE.SphereGeometry(0.08, 16, 12), [0, 0.72, 0.28], [1.4, 0.8, 0.8], 0.95);
+    }
+
+    if (selectedSystem === "urinary") {
+      addMesh("urinary", new THREE.SphereGeometry(0.14, 18, 14), [-0.28, 0.45, -0.02], [0.8, 1.15, 0.6], 0.9);
+      addMesh("urinary", new THREE.SphereGeometry(0.14, 18, 14), [0.28, 0.45, -0.02], [0.8, 1.15, 0.6], 0.9);
+      addLine("urinary", [[-0.28, 0.35, -0.02], [-0.08, -0.18, 0.08]]);
+      addLine("urinary", [[0.28, 0.35, -0.02], [0.08, -0.18, 0.08]]);
+      addMesh("urinary", new THREE.SphereGeometry(0.16, 18, 14), [0, -0.28, 0.16], [1, 0.75, 0.7], 0.88);
+    }
+
+    if (selectedSystem === "skin") {
+      addMesh("skin", new THREE.CapsuleGeometry(0.75, 3.6, 16, 32), [0, 0.7, 0], [1.25, 1, 0.82], 0.2);
+    }
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const meshes = scene.children.filter((child) => child.isMesh);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -129,16 +576,15 @@ export function BodyDashboardPanel({
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(meshes)[0];
-      if (hit?.object?.name) {
-        selectedRef.current = hit.object.name;
-        onZoneSelect?.(hit.object.name);
+      const hit = raycaster.intersectObjects(regionMeshes)[0];
+      if (hit?.object?.userData?.region) {
+        toggleHighlight(hit.object.userData.region, selectedSystem);
       }
     };
 
     let frameId;
     const animate = () => {
-      scene.rotation.y += 0.004;
+      root.rotation.y += 0.0025;
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
@@ -152,9 +598,19 @@ export function BodyDashboardPanel({
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("click", handleClick);
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach((material) => material.dispose());
+          } else {
+            object.material.dispose();
+          }
+        }
+      });
       renderer.dispose();
     };
-  }, [onZoneSelect, zoneCounts]);
+  }, [focusedRegion, manualHighlights, onZoneSelect, selectedRegions, selectedSystem, signalCountsByRegion, viewRotation, zoom, zoneCounts]);
 
   const xp =
     (trackerData?.food?.length || 0) * 10 +
@@ -164,16 +620,56 @@ export function BodyDashboardPanel({
     ).length || 0) *
       20;
   const level = Math.max(1, Math.floor(xp / 100) + 1);
+  const selectedTrackerZone = regionTrackerZone(focusedRegion);
+  const relevantSymptoms = symptoms.filter(
+    (entry) => entry.body_zone === selectedTrackerZone,
+  );
+  const relevantActivities = (trackerData?.activities || []).slice(0, 3);
+  const relevantGoals = (trackerData?.goals || []).slice(0, 3);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Box sx={{ height: 340, border: "2px solid #111", bgcolor: "#050b12" }}>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+          3D Health Profile Avatar
+        </Typography>
+        <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+          Purple areas are linked to profile context, orange areas come from symptom logs, and cyan areas are your manual coaching focus. This is not diagnosis.
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+        {BODY_SYSTEMS.map((system) => (
+          <Button
+            key={system.id}
+            size="small"
+            variant={selectedSystem === system.id ? "contained" : "outlined"}
+            onClick={() => setSelectedSystem(system.id)}
+            aria-label={`Show ${system.label} system`}
+          >
+            {system.label}
+          </Button>
+        ))}
+      </Box>
+
+      <Box sx={{ height: 420, border: "2px solid #111", bgcolor: "#050b12" }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
       </Box>
+
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <Button size="small" onClick={() => setViewRotation(0)}>Front</Button>
+        <Button size="small" onClick={() => setViewRotation(Math.PI)}>Back</Button>
+        <Button size="small" onClick={() => setZoom((current) => Math.max(5.5, current - 0.5))}>Zoom In</Button>
+        <Button size="small" onClick={() => setZoom((current) => Math.min(9, current + 0.5))}>Zoom Out</Button>
+        <Button size="small" color="error" onClick={clearHighlights}>Clear Highlights</Button>
+      </Box>
+
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <Chip label={`Level ${level}`} />
         <Chip label={`${xp} XP today`} />
         <Chip label={`${bodyCompositionReadings?.length || 0} body readings`} />
+        <Chip label={`${profileSignals.length} profile signals`} />
+        <Chip color="primary" label={`${systemLabel(selectedSystem)} / ${regionLabel(focusedRegion)}`} />
       </Box>
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
         <Chip label={`Weight ${metric(body.weightKg, " kg")}`} />
@@ -182,11 +678,85 @@ export function BodyDashboardPanel({
         <Chip label={`Lean mass ${metric(body.leanMassKg, " kg")}`} />
       </Box>
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        {BODY_ZONES.map((zone) => (
-          <Button key={zone} size="small" variant="outlined" onClick={() => onZoneSelect?.(zone)}>
-            {zone} {zoneCounts[zone] ? `(${zoneCounts[zone]})` : ""}
+        {BODY_REGIONS.map((region) => (
+          <Button
+            key={region.id}
+            size="small"
+            variant={focusedRegion === region.id ? "contained" : "outlined"}
+            onClick={() => toggleHighlight(region.id, selectedSystem)}
+            aria-label={`Select ${region.label}`}
+          >
+            {region.label}
+            {zoneCounts[region.trackerZone] ? ` S${zoneCounts[region.trackerZone]}` : ""}
+            {signalCountsByRegion[region.id] ? ` P${signalCountsByRegion[region.id]}` : ""}
           </Button>
         ))}
+      </Box>
+
+      <Box sx={{ border: "1px solid #333", p: 1.5, display: "grid", gap: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+          Selected focus
+        </Typography>
+        <Typography variant="body2">
+          {systemLabel(selectedSystem)} / {regionLabel(focusedRegion)}
+        </Typography>
+        <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+          {focusedSignals.slice(0, 5).map((signal) => (
+            <Chip
+              key={`${signal.source}-${signal.system}-${signal.region}-${signal.label}`}
+              size="small"
+              color="secondary"
+              label={`${signal.label}${signal.detail ? `: ${signal.detail}` : ""}`}
+            />
+          ))}
+          {relevantSymptoms.map((item) => (
+            <Chip
+              key={item.id}
+              size="small"
+              color="warning"
+              label={`${item.symptom} severity ${item.severity || "n/a"}`}
+            />
+          ))}
+          {relevantActivities.map((item) => (
+            <Chip key={item.id} size="small" color="info" label={item.activity_type} />
+          ))}
+          {relevantGoals.map((item) => (
+            <Chip key={item.id} size="small" color="secondary" label={item.title} />
+          ))}
+          {focusedSignals.length === 0 && relevantSymptoms.length === 0 && relevantActivities.length === 0 && relevantGoals.length === 0 && (
+            <Chip size="small" label="No tracker signals for this focus yet" />
+          )}
+        </Box>
+        <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+          Use this view to choose a coaching topic from your profile, body composition, symptoms, goals, and habits. It should guide questions, not label disease.
+        </Typography>
+        <Button variant="contained" onClick={askCoach}>
+          Ask Coach About This
+        </Button>
+      </Box>
+
+      <Box sx={{ display: "grid", gap: 0.75 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+          Manual highlights
+        </Typography>
+        {manualHighlights.length === 0 ? (
+          <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+            Click the avatar or a region button to mark a coaching focus.
+          </Typography>
+        ) : (
+          manualHighlights.map((item) => (
+            <Chip
+              key={highlightKey(item.region, item.system)}
+              label={item.label}
+              onDelete={() => toggleHighlight(item.region, item.system)}
+            />
+          ))
+        )}
+        {saveStatus && (
+          <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+            {saveStatus}
+          </Typography>
+        )}
       </Box>
     </Box>
   );
@@ -583,6 +1153,146 @@ export function DocumentsPanel() {
           ))}
         </Box>
       )}
+    </Box>
+  );
+}
+
+export function UserUploadsPanel() {
+  const authedFetch = useAuthedFetch();
+  const fileRef = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const load = async () => {
+    const response = await authedFetch("/api/health-user-files");
+    if (!response.ok) return;
+    const data = await response.json();
+    setFiles(data.files || []);
+  };
+
+  useEffect(() => {
+    load().catch((loadError) => setError(loadError.message || "Failed to load uploads"));
+  }, []);
+
+  const upload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setStatus("");
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("notes", notes);
+
+      const response = await authedFetch("/api/health-user-files/upload", {
+        method: "POST",
+        body,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.error_message || "Upload processing failed");
+      }
+
+      setStatus("Uploaded and saved to your health knowledge base.");
+      setNotes("");
+      if (fileRef.current) fileRef.current.value = "";
+      await load();
+    } catch (uploadError) {
+      setError(uploadError.message || "Upload failed");
+      await load().catch(() => {});
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async (id) => {
+    setError("");
+    setStatus("");
+    const response = await authedFetch(`/api/health-user-files?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.error || "Failed to delete upload");
+      return;
+    }
+    setStatus("Upload deleted.");
+    await load();
+  };
+
+  return (
+    <Box sx={{ display: "grid", gap: 2 }}>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+          Personal Health Uploads
+        </Typography>
+        <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+          Upload PDFs, text files, or images. Extracted content is saved privately to your health knowledge base.
+        </Typography>
+      </Box>
+      {error && <Alert severity="error">{error}</Alert>}
+      {status && <Alert severity="success">{status}</Alert>}
+      <Box sx={{ border: "1px solid #333", p: 2, display: "grid", gap: 1 }}>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/pdf,text/plain,text/markdown,application/json,.txt,.md,.json,.csv,image/png,image/jpeg,image/webp"
+        />
+        <TextField
+          label="Upload notes"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          multiline
+          rows={2}
+        />
+        <Button
+          startIcon={<UploadIcon />}
+          variant="contained"
+          onClick={upload}
+          disabled={uploading}
+        >
+          {uploading ? "Processing..." : "Upload to Knowledge Base"}
+        </Button>
+      </Box>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        {files.length === 0 && (
+          <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+            No personal uploads yet.
+          </Typography>
+        )}
+        {files.map((file) => (
+          <Box key={file.id} sx={{ border: "1px solid #333", p: 1.5, display: "grid", gap: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "center" }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+                {file.file_name}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <Chip size="small" label={file.status} />
+                <IconButton size="small" onClick={() => remove(file.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              {file.mime_type || "unknown type"} | {new Date(file.created_at).toLocaleString()}
+              {file.metadata?.knowledge_chunks ? ` | ${file.metadata.knowledge_chunks} knowledge chunks` : ""}
+            </Typography>
+            {file.error_message && (
+              <Alert severity="warning">{file.error_message}</Alert>
+            )}
+            {file.summary && (
+              <Typography variant="body2">
+                {file.summary.slice(0, 700)}
+                {file.summary.length > 700 ? "..." : ""}
+              </Typography>
+            )}
+          </Box>
+        ))}
+      </Box>
     </Box>
   );
 }

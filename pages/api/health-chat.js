@@ -1,14 +1,10 @@
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { getEffectiveSubscriptionTier, hasFullAccess } from "../../lib/access";
+import { getHealthAiConfigurationHint, streamHealthChat } from "../../lib/health-ai-provider";
 
 export const config = {
   runtime: "nodejs",
 };
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,7 +13,14 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
-const requireAuth = process.env.HEALTH_CHAT_REQUIRE_AUTH !== "false";
+let requireAuth = process.env.HEALTH_CHAT_REQUIRE_AUTH !== "false";
+
+// If auth is requested but the Supabase admin client isn't configured,
+// disable the auth requirement to avoid a 500 error in development.
+if (requireAuth && !supabaseAdmin) {
+  console.warn("HEALTH_CHAT_REQUIRE_AUTH=true but Supabase admin client is not configured. Disabling auth for this runtime.");
+  requireAuth = false;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MEAL PLANNING FRAMEWORKS & RESOURCES
@@ -1194,7 +1197,7 @@ export default async function handler(req, res) {
       const emergencyInfo = detectEmergencyOrCrisis(latestUserMessage.content);
 
       if (emergencyInfo.isEmergency) {
-        // Return emergency response immediately without calling OpenAI
+        // Return emergency response immediately without calling an AI provider.
         const emergencyResponse = generateEmergencyResponse(emergencyInfo);
 
         // Set headers for streaming (to match expected format)
@@ -1209,10 +1212,6 @@ export default async function handler(req, res) {
         res.write("data: [DONE]\n\n");
         return res.end();
       }
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: "OpenAI API key is not configured" });
     }
 
     if (requireAuth && !supabaseAdmin) {
@@ -1271,27 +1270,15 @@ export default async function handler(req, res) {
     // Add user messages
     messagesToSend.push(...messages);
 
-    // Create streaming completion
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: messagesToSend,
-      stream: true,
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
-
     // Set headers for streaming
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
 
-    // Stream the response
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) {
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      }
-    }
+    await streamHealthChat(messagesToSend, res, {
+      temperature: 0.7,
+      maxTokens: 1000,
+    });
 
     // Increment usage count for authenticated users
     if (user) {
@@ -1302,23 +1289,42 @@ export default async function handler(req, res) {
     res.write("data: [DONE]\n\n");
     res.end();
   } catch (error) {
-    console.error("Health chat API error:", error);
+      console.error("Health chat API error:", error?.status || error?.statusCode || "no-status", error?.message || error);
+      // Log response body if available (OpenAI client errors often include response)
+      try {
+        if (error?.response) {
+          console.error("Health chat API error response:", JSON.stringify(error.response));
+        }
+      } catch (e) {
+        // ignore logging errors
+      }
 
-    // Handle specific OpenAI errors
-    if (error.status === 401) {
+    if (
+      error.message === "OpenAI API key is not configured" ||
+      error.message?.startsWith("Ollama chat request failed") ||
+      error.message?.startsWith("Unsupported health AI provider")
+    ) {
       return res.status(500).json({
-        error: "API configuration error. Please check server settings.",
+        error: "AI provider is not configured",
+        detail: process.env.NODE_ENV !== "production"
+          ? `${error.message}. ${getHealthAiConfigurationHint()}`
+          : undefined,
       });
     }
 
     if (error.status === 429) {
+      // Provide a bit more detail in development to help debugging
+      const devDetail = process.env.NODE_ENV !== "production" ? (error.message || error.toString()) : undefined;
       return res.status(429).json({
         error: "Too many requests. Please try again in a moment.",
+        detail: devDetail,
       });
     }
 
+    const devMsg = process.env.NODE_ENV !== "production" ? (error.message || String(error)) : undefined;
     res.status(500).json({
       error: "An error occurred processing your request",
+      detail: devMsg,
     });
   }
 }

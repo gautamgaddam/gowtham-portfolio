@@ -23,6 +23,7 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [error, setError] = useState("");
   const LIMIT = 10;
 
   useEffect(() => {
@@ -35,6 +36,7 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
     if (!user) return;
 
     setLoading(true);
+    setError("");
     try {
       // Get auth token
       const { createSupabaseClient } = await import("../lib/supabase");
@@ -52,8 +54,9 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
         }
       );
 
+      const data = await response.json().catch(() => ({}));
+
       if (response.ok) {
-        const data = await response.json();
         
         if (startOffset === 0) {
           setConversations(data.conversations);
@@ -63,9 +66,12 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
         
         setHasMore(data.hasMore);
         setOffset(startOffset + LIMIT);
+      } else {
+        setError(data.error || "Conversation history is not available.");
       }
     } catch (error) {
       console.error("Error loading conversations:", error);
+      setError(error.message || "Conversation history is not available.");
     } finally {
       setLoading(false);
     }
@@ -146,6 +152,18 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
         {loading && conversations.length === 0 ? (
           <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
             <CircularProgress size={32} />
+          </Box>
+        ) : error ? (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="body2" color="error" sx={{ mb: 1, fontWeight: 700 }}>
+              Could not load previous chats.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {error}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+              Saved chat history requires Supabase server configuration. Add `SUPABASE_SERVICE_ROLE_KEY` and restart the dev server.
+            </Typography>
           </Box>
         ) : conversations.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center" }}>

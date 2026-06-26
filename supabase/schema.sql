@@ -375,7 +375,7 @@ CREATE TABLE health_knowledge_base (
   conversation_id uuid REFERENCES health_conversations(id) ON DELETE CASCADE,
   content_type text NOT NULL CHECK (content_type IN ('conversation_summary', 'meal_plan', 'clinician_summary', 'progress_report', 'supplement_check', 'other')),
   content text NOT NULL,
-  embedding vector(1536),
+  embedding vector(768),
   metadata jsonb DEFAULT '{}',
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -396,6 +396,35 @@ CREATE INDEX health_kb_conversation_idx ON health_knowledge_base(conversation_id
 CREATE INDEX health_kb_content_type_idx ON health_knowledge_base(content_type);
 CREATE INDEX health_kb_embedding_idx ON health_knowledge_base 
   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- ============================================
+-- USER HEALTH FILES TABLE (Private uploaded reports/images)
+-- ============================================
+CREATE TABLE health_user_files (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  file_name text NOT NULL,
+  file_size_bytes bigint,
+  mime_type text,
+  storage_path text,
+  status text DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'failed')),
+  extracted_text text,
+  summary text,
+  error_message text,
+  metadata jsonb DEFAULT '{}',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE health_user_files ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own health files"
+  ON health_user_files FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX health_user_files_user_idx ON health_user_files(user_id, created_at DESC);
+CREATE INDEX health_user_files_status_idx ON health_user_files(status);
 
 -- ============================================
 -- SHARED HEALTH DOCUMENTS TABLE (Admin-uploaded RAG books)
@@ -448,7 +477,7 @@ CREATE TABLE health_document_chunks (
   document_id uuid REFERENCES health_documents(id) ON DELETE CASCADE NOT NULL,
   chunk_index integer NOT NULL,
   content text NOT NULL,
-  embedding vector(1536),
+  embedding vector(768),
   page_start integer,
   page_end integer,
   chapter text,
@@ -613,7 +642,7 @@ CREATE TRIGGER update_health_goal_checkins_updated_at BEFORE UPDATE ON health_go
 -- VECTOR SEARCH RPC FUNCTION
 -- ============================================
 CREATE OR REPLACE FUNCTION match_health_knowledge(
-  query_embedding vector(1536),
+  query_embedding vector(768),
   match_user_id uuid,
   match_threshold float DEFAULT 0.7,
   match_count int DEFAULT 5
@@ -645,7 +674,7 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION match_health_document_chunks(
-  query_embedding vector(1536),
+  query_embedding vector(768),
   match_threshold float DEFAULT 0.7,
   match_count int DEFAULT 6,
   include_admin_only boolean DEFAULT false

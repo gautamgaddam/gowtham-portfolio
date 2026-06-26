@@ -1,0 +1,44 @@
+{
+  "name": "gowtham-portfolio-agentic-software-team",
+  "purpose": "Maintain and improve a multi-user portfolio SaaS with health AI, music, games, Supabase auth, and public portfolio publishing.",
+  "entrypoint": "../../AGENTS.md",
+  "roles": [
+    {
+      "id": "product-lead",
+      "playbook": "agents/product-lead.md",
+      "owns": ["scope", "priorities", "acceptance criteria", "roadmap"]
+    },
+    {
+      "id": "full-stack-engineer",
+      "playbook": "agents/full-stack-engineer.md",
+      "owns": ["Next.js pages", "API routes", "Supabase integration", "shared libraries"]
+    },
+    {
+      "id": "ai-engineer",
+      "playbook": "agents/ai-engineer.md",
+      "owns": ["health AI", "document processing", "prompt safety", "provider behavior"]
+    },
+    {
+      "id": "ux-engineer",
+      "playbook": "agents/ux-engineer.md",
+      "owns": ["user flows", "responsive UI", "accessibility", "visual consistency"]
+    },
+    {
+      "id": "qa-engineer",
+      "playbook": "agents/qa-engineer.md",
+      "owns": ["verification", "regression checks", "release risk"]
+    },
+    {
+      "id": "devops-engineer",
+      "playbook": "agents/devops-engineer.md",
+      "owns": ["environment setup", "deployment", "operational docs", "secret safety"]
+    }
+  ],
+  "workflows": [
+    "workflows/autonomous-task-loop.md",
+    "workflows/feature-delivery.md",
+    "workflows/health-ai-change.md"
+  ],
+  "backlog": "backlog.md",
+  "taskBriefTemplate": "templates/task-brief.md"
+}

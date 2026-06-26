@@ -1,13 +1,9 @@
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import { embedHealthText } from "../../../lib/health-ai-provider";
 
 export const config = {
   runtime: "nodejs",
 };
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,13 +46,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing required field: query" });
     }
 
-    // Generate embedding for the query
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: query,
-    });
-
-    const queryEmbedding = embeddingResponse.data[0].embedding;
+    const queryEmbedding = await embedHealthText(query);
 
     // Call the RPC function to search user conversation knowledge
     const { data: results, error } = await supabaseAdmin.rpc(

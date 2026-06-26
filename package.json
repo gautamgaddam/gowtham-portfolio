@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:https": "next dev & local-ssl-proxy --source 3001 --target 3000",
+    "dev": "next dev -p 3005",
+    "dev:https": "next dev -p 3005 & local-ssl-proxy --source 3001 --target 3005",
     "build": "next build",
     "start": "next start"
   },

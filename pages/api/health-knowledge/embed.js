@@ -1,13 +1,9 @@
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import { embedHealthText } from "../../../lib/health-ai-provider";
 
 export const config = {
   runtime: "nodejs",
 };
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -90,13 +86,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Generate embedding using OpenAI
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: content,
-    });
-
-    const embedding = embeddingResponse.data[0].embedding;
+    const embedding = await embedHealthText(content);
 
     // Insert into knowledge base
     const { data: kbEntry, error } = await supabaseAdmin

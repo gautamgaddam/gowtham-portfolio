@@ -11,6 +11,8 @@ import {
   MenuItem,
   InputLabel,
   Button,
+  Alert,
+  Autocomplete,
   Checkbox,
   FormGroup,
   FormControlLabel,
@@ -20,6 +22,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import StopIcon from "@mui/icons-material/Stop";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import InfoIcon from "@mui/icons-material/Info";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -45,6 +48,8 @@ import UploadIcon from "@mui/icons-material/Upload";
 import TextIncreaseIcon from "@mui/icons-material/TextIncrease";
 import ContrastIcon from "@mui/icons-material/Contrast";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
+import SettingsIcon from "@mui/icons-material/Settings";
+import YouTubeIcon from "@mui/icons-material/YouTube";
 import { useTheme } from "@mui/material/styles";
 import gsap, { Power3 } from "gsap";
 import styles from "../styles/health.module.css";
@@ -56,6 +61,7 @@ import {
   DailyTrackerPanel,
   DocumentsPanel,
   PlansPanel,
+  UserUploadsPanel,
 } from "./HealthWorkspacePanels";
 import {
   BODY_COMPOSITION_METHODS,
@@ -73,6 +79,8 @@ const HEALTH_WORKSPACE_TABS = [
   { id: "tracker", label: "Daily Tracker" },
   { id: "body", label: "Body" },
   { id: "plans", label: "Plans" },
+  { id: "videos", label: "Videos" },
+  { id: "uploads", label: "Uploads" },
   { id: "documents", label: "Documents" },
   { id: "settings", label: "Settings" },
 ];
@@ -90,19 +98,56 @@ const SUGGESTED_PROMPTS = [
 
 // Conditions options
 const CONDITIONS = [
+  "None",
   "CVD",
+  "Coronary Artery Disease",
+  "Heart Failure",
+  "Arrhythmia",
+  "Stroke/TIA",
   "Hypertension",
   "Type 2 Diabetes",
+  "Type 1 Diabetes",
+  "Prediabetes",
+  "High Cholesterol",
+  "High Triglycerides",
   "Obesity",
   "Depression/Anxiety",
+  "ADHD",
+  "PTSD",
+  "Insomnia",
   "Chronic Pain",
+  "Migraine",
   "Lupus",
   "Rheumatoid Arthritis",
   "Psoriatic Disease",
+  "Osteoarthritis",
+  "Osteoporosis",
   "IBD",
+  "IBS",
+  "GERD",
+  "Celiac Disease",
+  "Fatty Liver / NAFLD",
   "Metabolic Syndrome",
-  "None",
+  "Asthma",
+  "COPD",
+  "Chronic Kidney Disease",
+  "Thyroid Disease",
+  "PCOS",
+  "Endometriosis",
+  "Anemia",
+  "Cancer History",
+  "Sleep Apnea",
 ];
+
+const normalizeConditionList = (conditions = []) => {
+  const values = Array.isArray(conditions) ? conditions : [];
+  const cleaned = values
+    .map((condition) => String(condition || "").trim())
+    .filter(Boolean);
+
+  if (cleaned.includes("None")) return ["None"];
+  return Array.from(new Set(cleaned));
+};
 
 // Goals options
 const GOALS = [
@@ -488,13 +533,15 @@ const PersonalizationIntakeModal = ({
   onClose,
   onSave,
   initialProfile,
+  isSaving,
+  saveError,
 }) => {
   const theme = useTheme();
   const modalRef = useRef(null);
 
   const [profile, setProfile] = useState({
     ageBand: initialProfile?.ageBand || "",
-    conditions: initialProfile?.conditions || [],
+    conditions: normalizeConditionList(initialProfile?.conditions),
     medications: initialProfile?.medications || "",
     allergies: initialProfile?.allergies || "",
     dietaryPattern: initialProfile?.dietaryPattern || "",
@@ -516,7 +563,7 @@ const PersonalizationIntakeModal = ({
 
     setProfile({
       ageBand: initialProfile?.ageBand || "",
-      conditions: initialProfile?.conditions || [],
+      conditions: normalizeConditionList(initialProfile?.conditions),
       medications: initialProfile?.medications || "",
       allergies: initialProfile?.allergies || "",
       dietaryPattern: initialProfile?.dietaryPattern || "",
@@ -544,17 +591,6 @@ const PersonalizationIntakeModal = ({
     }
   }, [open]);
 
-  const handleConditionToggle = (condition) => {
-    if (condition === "None") {
-      setProfile({ ...profile, conditions: ["None"] });
-    } else {
-      const newConditions = profile.conditions.includes(condition)
-        ? profile.conditions.filter((c) => c !== condition)
-        : [...profile.conditions.filter((c) => c !== "None"), condition];
-      setProfile({ ...profile, conditions: newConditions });
-    }
-  };
-
   const handleGoalToggle = (goal) => {
     const newGoals = profile.goals.includes(goal)
       ? profile.goals.filter((g) => g !== goal)
@@ -562,9 +598,14 @@ const PersonalizationIntakeModal = ({
     setProfile({ ...profile, goals: newGoals });
   };
 
-  const handleSave = () => {
-    onSave(profile);
-    onClose();
+  const handleSave = async () => {
+    const saved = await onSave({
+      ...profile,
+      conditions: normalizeConditionList(profile.conditions),
+    });
+    if (saved !== false) {
+      onClose();
+    }
   };
 
   return (
@@ -609,37 +650,43 @@ const PersonalizationIntakeModal = ({
           {/* Conditions */}
           <Box className={styles.formSection}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-              Diagnosed Conditions
+              Medical History
             </Typography>
-            <Box className={styles.chipContainer}>
-              {CONDITIONS.map((condition) => (
-                <Chip
-                  key={condition}
-                  label={condition}
-                  onClick={() => handleConditionToggle(condition)}
-                  className={
-                    profile.conditions.includes(condition)
-                      ? styles.chipSelected
-                      : styles.chipUnselected
-                  }
-                  sx={{
-                    backgroundColor: profile.conditions.includes(condition)
-                      ? "#00e676"
-                      : "#333",
-                    color: profile.conditions.includes(condition)
-                      ? "#1a1a1a"
-                      : "#e2e8f0",
-                    border: "2px solid #000",
-                    fontWeight: 600,
-                    "&:hover": {
-                      backgroundColor: profile.conditions.includes(condition)
-                        ? "#00c853"
-                        : "#444",
-                    },
-                  }}
+            <Autocomplete
+              multiple
+              freeSolo
+              options={CONDITIONS}
+              value={profile.conditions}
+              onChange={(_event, value) =>
+                setProfile({
+                  ...profile,
+                  conditions: normalizeConditionList(value),
+                })
+              }
+              filterSelectedOptions
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    label={option}
+                    {...getTagProps({ index })}
+                    key={option}
+                    sx={{
+                      backgroundColor: "#00e676",
+                      color: "#1a1a1a",
+                      border: "2px solid #000",
+                      fontWeight: 600,
+                    }}
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Diagnosed Conditions"
+                  placeholder="Search or add a diagnosed condition"
                 />
-              ))}
-            </Box>
+              )}
+            />
           </Box>
 
           {/* Medications */}
@@ -877,9 +924,15 @@ const PersonalizationIntakeModal = ({
         </Box>
 
         <Box className={styles.modalActions}>
+          {saveError && (
+            <Alert severity="error" sx={{ width: "100%", mb: 1 }}>
+              {saveError}
+            </Alert>
+          )}
           <Button
             onClick={onClose}
             variant="outlined"
+            disabled={isSaving}
             sx={{
               border: "2px solid #000",
               color: theme.palette.mode === "dark" ? "#e2e8f0" : "#1a1a1a",
@@ -895,6 +948,7 @@ const PersonalizationIntakeModal = ({
             onClick={handleSave}
             variant="contained"
             className={styles.saveButton}
+            disabled={isSaving}
             sx={{
               background: "linear-gradient(135deg, #00e676 0%, #00c853 100%)",
               color: "#1a1a1a",
@@ -905,7 +959,7 @@ const PersonalizationIntakeModal = ({
               },
             }}
           >
-            Save Profile
+            {isSaving ? "Saving..." : "Save Profile"}
           </Button>
         </Box>
       </Box>
@@ -3916,6 +3970,8 @@ const HealthChatbot = () => {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState("");
   const [showClearDialog, setShowClearDialog] = useState(false);
 
   // New component states
@@ -3932,6 +3988,7 @@ const HealthChatbot = () => {
     useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showChatSettings, setShowChatSettings] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [draftMessage, setDraftMessage] = useState("");
@@ -3945,6 +4002,13 @@ const HealthChatbot = () => {
     goals: [],
   });
   const [selectedBodyZone, setSelectedBodyZone] = useState("");
+  const [avatarFocus, setAvatarFocus] = useState(null);
+  const [youtubeState, setYoutubeState] = useState({
+    query: "",
+    videos: [],
+    loading: false,
+    error: "",
+  });
 
   // Accessibility settings
   const [accessibilitySettings, setAccessibilitySettings] = useState({
@@ -4215,9 +4279,12 @@ const HealthChatbot = () => {
   const handleSaveProfile = async (profile) => {
     const profileWithCalculations = {
       ...profile,
+      conditions: normalizeConditionList(profile.conditions),
       ...calculateBodyComposition(profile),
     };
 
+    setProfileSaving(true);
+    setProfileSaveError("");
     setUserProfile(profileWithCalculations);
     localStorage.setItem(
       PROFILE_STORAGE_KEY,
@@ -4225,12 +4292,40 @@ const HealthChatbot = () => {
     );
     setIsFirstVisit(false);
 
-    // Sync to database if user is logged in
-    if (user && supabase) {
-      try {
+    try {
+      // Sync to database if user is logged in
+      if (user && supabase) {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          await fetch("/api/health-profile", {
+        if (!session) {
+          setProfileSaveError("Your login session could not be confirmed. Please sign in again and retry.");
+          return false;
+        }
+
+        const profileResponse = await fetch("/api/health-profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(profileWithCalculations),
+        });
+
+        if (!profileResponse.ok) {
+          const errorBody = await profileResponse.json().catch(() => ({}));
+          setProfileSaveError(
+            `${errorBody.error || "Health profile was not saved to the database."} Your entries were kept locally in this browser.`,
+          );
+          return false;
+        }
+
+        if (
+          hasBodyCompositionInput(profileWithCalculations) &&
+          !isSameBodyCompositionReading(
+            profileWithCalculations,
+            bodyCompositionReadings[0],
+          )
+        ) {
+          const readingResponse = await fetch("/api/health-body-composition", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -4239,31 +4334,29 @@ const HealthChatbot = () => {
             body: JSON.stringify(profileWithCalculations),
           });
 
-          if (
-            hasBodyCompositionInput(profileWithCalculations) &&
-            !isSameBodyCompositionReading(
-              profileWithCalculations,
-              bodyCompositionReadings[0],
-            )
-          ) {
-            const readingResponse = await fetch("/api/health-body-composition", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify(profileWithCalculations),
-            });
-
-            if (readingResponse.ok) {
-              const readings = await loadBodyCompositionReadings();
-              setBodyCompositionReadings(readings);
-            }
+          if (!readingResponse.ok) {
+            const errorBody = await readingResponse.json().catch(() => ({}));
+            console.warn(
+              "Body composition history was not saved:",
+              errorBody.error || readingResponse.statusText,
+            );
+            return true;
           }
+
+          const readings = await loadBodyCompositionReadings();
+          setBodyCompositionReadings(readings);
         }
-      } catch (error) {
-        console.error("Error saving profile to database:", error);
       }
+
+      return true;
+    } catch (error) {
+      console.error("Error saving profile to database:", error);
+      setProfileSaveError(
+        `${error.message || "Failed to save health profile"} Your entries were kept locally in this browser.`,
+      );
+      return false;
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -4691,6 +4784,22 @@ const HealthChatbot = () => {
     setShowExportModal(true);
   };
 
+  const handleStartNewConversation = () => {
+    if (isStreaming) {
+      abortControllerRef.current?.abort();
+    }
+    setMessages([]);
+    setActiveConversationId(null);
+    setInputValue("");
+    setDraftMessage("");
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("health_draft_message");
+  };
+
+  const handleStopGenerating = () => {
+    abortControllerRef.current?.abort();
+  };
+
   const handleClearChat = async () => {
     // Delete from database if there's an active conversation
     if (user && supabase && activeConversationId) {
@@ -4899,6 +5008,21 @@ const HealthChatbot = () => {
       parts.push(`Daily tracker context: ${trackerParts.join(", ")}`);
       parts.push(
         "Tracker rule: use logged meals, workouts, goals, symptoms, and daily notes to personalize plans; do not diagnose from tracker data.",
+      );
+    }
+    if (avatarFocus?.region && avatarFocus?.system) {
+      const highlightLabels = (avatarFocus.highlights || [])
+        .slice(0, 6)
+        .map((item) => item.label)
+        .join("; ");
+      parts.push(
+        `Selected 3D avatar focus: ${avatarFocus.systemLabel} system and ${avatarFocus.regionLabel} region.`,
+      );
+      if (highlightLabels) {
+        parts.push(`Manual avatar highlights: ${highlightLabels}`);
+      }
+      parts.push(
+        "Avatar rule: manual highlights are user-selected coaching focus markers, not diagnostic findings.",
       );
     }
 
@@ -5212,6 +5336,7 @@ const HealthChatbot = () => {
     if (!text || isStreaming) return;
 
     const userMessage = { role: "user", content: text };
+    let accumulatedContent = "";
 
     const messagesToSend = [...messages, userMessage]
       .filter((message) => ["user", "assistant"].includes(message.role))
@@ -5288,6 +5413,8 @@ const HealthChatbot = () => {
             "The health chat database connection is not configured. Check `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, then restart the dev server.",
           "OpenAI API key is not configured":
             "The AI provider is not configured. Add `OPENAI_API_KEY` and restart the dev server.",
+          "AI provider is not configured":
+            "The health AI provider is not configured. Start Ollama and pull the configured models, or set `HEALTH_AI_PROVIDER=openai` with `OPENAI_API_KEY`, then restart the dev server.",
           "Database not configured":
             "The health database is not configured. Add Supabase environment variables and restart the dev server.",
         };
@@ -5309,14 +5436,18 @@ const HealthChatbot = () => {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let accumulatedContent = "";
+      let streamBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          streamBuffer += decoder.decode();
+          break;
+        }
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        streamBuffer += decoder.decode(value, { stream: true });
+        const lines = streamBuffer.split("\n");
+        streamBuffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
@@ -5342,6 +5473,28 @@ const HealthChatbot = () => {
             } catch (e) {
               // Ignore JSON parse errors for incomplete chunks
             }
+          }
+        }
+      }
+
+      if (streamBuffer.trim().startsWith("data: ")) {
+        const data = streamBuffer.trim().slice(6);
+        if (data !== "[DONE]") {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              accumulatedContent += parsed.content;
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  role: "assistant",
+                  content: accumulatedContent,
+                };
+                return updated;
+              });
+            }
+          } catch (e) {
+            // Ignore a final malformed stream fragment.
           }
         }
       }
@@ -5428,9 +5581,17 @@ const HealthChatbot = () => {
       }
     } catch (error) {
       if (error.name === "AbortError") {
-        console.log("Request aborted");
-        // Save draft message
-        setDraftMessage(text);
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: accumulatedContent
+              ? `${accumulatedContent}\n\n_Response stopped._`
+              : "_Response stopped._",
+            isStopped: true,
+          };
+          return updated;
+        });
       } else {
         console.error("Chat error:", error);
 
@@ -5571,6 +5732,67 @@ const HealthChatbot = () => {
     setActiveWorkspaceTab("tracker");
   };
 
+  const fetchFocusVideos = async (focus) => {
+    const query = [
+      "evidence based health education",
+      focus?.systemLabel,
+      focus?.regionLabel,
+      "exercise lifestyle warning signs",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    setYoutubeState({ query, videos: [], loading: true, error: "" });
+    try {
+      const response = await fetch(
+        `/api/health-youtube-search?q=${encodeURIComponent(query)}&limit=8`,
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load YouTube videos");
+      }
+      setYoutubeState({
+        query: data.query || query,
+        videos: data.videos || [],
+        loading: false,
+        error: "",
+      });
+    } catch (error) {
+      setYoutubeState({
+        query,
+        videos: [],
+        loading: false,
+        error: error.message || "Could not load YouTube videos",
+      });
+    }
+  };
+
+  const handleAskAvatarCoach = (focus) => {
+    if (!focus?.region || !focus?.system) return;
+    const profileSignals = (focus.profileSignals || [])
+      .slice(0, 5)
+      .map((signal) => `${signal.label}${signal.detail ? ` (${signal.detail})` : ""}`)
+      .join("; ");
+    const bodySummary = focus.bodySummary
+      ? [
+          focus.bodySummary.bmi
+            ? `BMI ${focus.bodySummary.bmi} (${focus.bodySummary.bmiCategory || "uncategorized"})`
+            : null,
+          focus.bodySummary.bodyFatCategory
+            ? `body fat ${focus.bodySummary.bodyFatCategory}`
+            : null,
+          focus.bodySummary.weightToMuscleContext || null,
+        ]
+          .filter(Boolean)
+          .join("; ")
+      : "";
+    fetchFocusVideos(focus);
+    setActiveWorkspaceTab("videos");
+    sendMessage(
+      `Using my profile, tracker data, body composition, and selected 3D health avatar focus (${focus.systemLabel} system / ${focus.regionLabel} region), explain why this focus may matter for coaching, evidence-based lifestyle actions, warning signs, questions to ask a clinician, and one safe next step. Profile-linked avatar signals: ${profileSignals || "none selected"}. Body summary: ${bodySummary || "not available"}. Do not diagnose from this avatar selection or body composition estimates.`,
+    );
+  };
+
   const handleAskPlan = (planType) => {
     setActiveWorkspaceTab("chat");
     const prompts = {
@@ -5613,6 +5835,75 @@ const HealthChatbot = () => {
           onSaved={() => setActiveWorkspaceTab("tracker")}
         />
       );
+    }
+
+    if (activeWorkspaceTab === "videos") {
+      return (
+        <Box sx={{ display: "grid", gap: 2 }}>
+          <Box sx={{ display: "grid", gap: 0.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Related Health Videos
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Search: {youtubeState.query || "Select a body focus and ask the coach"}
+            </Typography>
+          </Box>
+          {youtubeState.loading && (
+            <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+              Searching YouTube...
+            </Typography>
+          )}
+          {youtubeState.error && (
+            <Alert severity="warning">{youtubeState.error}</Alert>
+          )}
+          {!youtubeState.loading && !youtubeState.error && youtubeState.videos.length === 0 && (
+            <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+              No videos loaded yet.
+            </Typography>
+          )}
+          {youtubeState.videos.map((video) => (
+            <Box
+              key={video.id}
+              component="a"
+              href={video.url}
+              target="_blank"
+              rel="noreferrer"
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "96px 1fr",
+                gap: 1,
+                p: 1,
+                border: "1px solid #333",
+                color: "inherit",
+                textDecoration: "none",
+                "&:hover": { borderColor: "#00e676" },
+              }}
+            >
+              <Box
+                component="img"
+                src={video.thumbnail}
+                alt=""
+                sx={{ width: 96, height: 54, objectFit: "cover", bgcolor: "#111" }}
+              />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                  {video.title}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
+                  {video.channel} {video.duration ? `| ${video.duration}` : ""}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
+                  {[video.published, video.viewCount].filter(Boolean).join(" | ")}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+
+    if (activeWorkspaceTab === "uploads") {
+      return <UserUploadsPanel />;
     }
 
     if (activeWorkspaceTab === "documents") {
@@ -5658,6 +5949,8 @@ const HealthChatbot = () => {
         onClose={() => setShowProfileModal(false)}
         onSave={handleSaveProfile}
         initialProfile={userProfile}
+        isSaving={profileSaving}
+        saveError={profileSaveError}
       />
 
       <Dialog open={showClearDialog} onClose={() => setShowClearDialog(false)}>
@@ -5673,6 +5966,216 @@ const HealthChatbot = () => {
           <Button onClick={handleClearChat} color="error" variant="contained">
             Clear All
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={showChatSettings}
+        onClose={() => setShowChatSettings(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Health Coach Settings</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "grid", gap: 3, pt: 1 }}>
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+                Conversation
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Button startIcon={<AddIcon />} onClick={handleStartNewConversation}>
+                  New conversation
+                </Button>
+                <Button
+                  startIcon={<HistoryIcon />}
+                  onClick={() => {
+                    setShowHistoryPanel(true);
+                    setShowChatSettings(false);
+                  }}
+                  disabled={!user}
+                >
+                  History
+                </Button>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  onClick={() => {
+                    handleExportConversation();
+                    setShowChatSettings(false);
+                  }}
+                  disabled={messages.length === 0}
+                >
+                  Export
+                </Button>
+                <Button
+                  startIcon={<UploadIcon />}
+                  onClick={() => {
+                    setShowImportModal(true);
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Import
+                </Button>
+                <Button
+                  startIcon={<DeleteIcon />}
+                  color="error"
+                  onClick={() => {
+                    setShowClearDialog(true);
+                    setShowChatSettings(false);
+                  }}
+                  disabled={messages.length === 0}
+                >
+                  Clear
+                </Button>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+                Health Tools
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Button
+                  startIcon={<RestaurantIcon />}
+                  onClick={() => {
+                    handleQuickAction("meal-plan");
+                    setShowChatSettings(false);
+                  }}
+                  disabled={isStreaming}
+                >
+                  Meal plan
+                </Button>
+                <Button
+                  startIcon={<CalendarMonthIcon />}
+                  onClick={() => {
+                    handleQuickAction("weekly-plan");
+                    setShowChatSettings(false);
+                  }}
+                  disabled={isStreaming}
+                >
+                  Weekly plan
+                </Button>
+                <Button
+                  startIcon={<LocalHospitalIcon />}
+                  onClick={() => {
+                    handleQuickAction("clinician-summary");
+                    setShowChatSettings(false);
+                  }}
+                  disabled={isStreaming || messages.length === 0}
+                >
+                  Doctor summary
+                </Button>
+                <Button
+                  startIcon={<MedicationIcon />}
+                  onClick={() => {
+                    handleQuickAction("supplement-check");
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Supplements
+                </Button>
+                <Button
+                  startIcon={<SpaIcon />}
+                  onClick={() => {
+                    handleQuickAction("audio-library");
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Audio scripts
+                </Button>
+                <Button
+                  startIcon={<CalendarMonthIcon />}
+                  onClick={() => {
+                    handleQuickAction("progress-tracker");
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Progress
+                </Button>
+                <Button
+                  startIcon={<BarChartIcon />}
+                  onClick={() => {
+                    handleQuickAction("body-composition");
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Body composition
+                </Button>
+                <Button
+                  startIcon={<UploadIcon />}
+                  onClick={() => {
+                    setActiveWorkspaceTab("uploads");
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Upload files
+                </Button>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+                Preferences
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Button
+                  startIcon={<EditIcon />}
+                  onClick={() => {
+                    setProfileSaveError("");
+                    setShowProfileModal(true);
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Quick profile edit
+                </Button>
+                <Button
+                  startIcon={<EditIcon />}
+                  href="/dashboard/health/profile"
+                >
+                  Profile page
+                </Button>
+                <Button
+                  startIcon={<SettingsAccessibilityIcon />}
+                  onClick={() => {
+                    setShowAccessibilityPanel(true);
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Accessibility
+                </Button>
+                <Button
+                  startIcon={<BarChartIcon />}
+                  onClick={() => {
+                    setShowInsights(true);
+                    setShowChatSettings(false);
+                  }}
+                  disabled={messages.length === 0}
+                >
+                  Insights
+                </Button>
+                <Button
+                  startIcon={<HelpOutlineIcon />}
+                  onClick={() => {
+                    setShowHelpPanel(true);
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Help
+                </Button>
+                <Button
+                  startIcon={<PrivacyTipIcon />}
+                  onClick={() => {
+                    setShowPrivacyNotice(true);
+                    setShowChatSettings(false);
+                  }}
+                >
+                  Privacy
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowChatSettings(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
@@ -5724,23 +6227,7 @@ const HealthChatbot = () => {
             }}
           >
             <IconButton
-              onClick={() => setShowHelpPanel(true)}
-              className={styles.actionButton}
-              title="Help"
-              aria-label="Open help panel"
-              sx={{
-                color: theme.palette.mode === "dark" ? "#9c27b0" : "#7b1fa2",
-              }}
-            >
-              <HelpOutlineIcon />
-            </IconButton>
-
-            <IconButton
-              onClick={() => {
-                setMessages([]);
-                setActiveConversationId(null);
-                localStorage.removeItem(STORAGE_KEY);
-              }}
+              onClick={handleStartNewConversation}
               className={styles.actionButton}
               title="New Conversation"
               aria-label="Start a new conversation"
@@ -5751,62 +6238,26 @@ const HealthChatbot = () => {
               <AddIcon />
             </IconButton>
 
-            <IconButton
-              onClick={() => setShowAccessibilityPanel(true)}
-              className={styles.actionButton}
-              title="Accessibility"
-              aria-label="Open accessibility settings"
+            <Button
+              onClick={() => setShowHistoryPanel(true)}
+              startIcon={<HistoryIcon />}
+              size="small"
+              variant="outlined"
               sx={{
-                color: theme.palette.mode === "dark" ? "#9c27b0" : "#7b1fa2",
+                border: "2px solid #333",
+                color: "#dbeafe",
+                fontWeight: 900,
+                textTransform: "none",
               }}
             >
-              <SettingsAccessibilityIcon />
-            </IconButton>
+              Chats
+            </Button>
 
             <IconButton
-              onClick={() => setShowPrivacyNotice(true)}
-              className={styles.actionButton}
-              title="Privacy"
-              aria-label="View privacy information"
-              sx={{
-                color: theme.palette.mode === "dark" ? "#ff6b35" : "#f7931e",
+              onClick={() => {
+                setProfileSaveError("");
+                setShowProfileModal(true);
               }}
-            >
-              <PrivacyTipIcon />
-            </IconButton>
-
-            {messages.length > 0 && (
-              <>
-                <IconButton
-                  onClick={() => setShowInsights(true)}
-                  className={styles.actionButton}
-                  title="View Insights"
-                  aria-label="View health insights dashboard"
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark" ? "#2196f3" : "#1976d2",
-                  }}
-                >
-                  <BarChartIcon />
-                </IconButton>
-
-                <IconButton
-                  onClick={() => setShowImportModal(true)}
-                  className={styles.actionButton}
-                  title="Import Data"
-                  aria-label="Import previous data"
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark" ? "#ff9800" : "#f57c00",
-                  }}
-                >
-                  <UploadIcon />
-                </IconButton>
-              </>
-            )}
-
-            <IconButton
-              onClick={() => setShowProfileModal(true)}
               className={styles.actionButton}
               title="Edit Profile"
               aria-label="Edit your health profile"
@@ -5818,59 +6269,28 @@ const HealthChatbot = () => {
             </IconButton>
 
             <IconButton
-              onClick={() => setShowBodyCompositionHistory(true)}
+              onClick={() => setShowChatSettings(true)}
               className={styles.actionButton}
-              title="Body Composition"
-              aria-label="View body composition history"
+              title="Settings"
+              aria-label="Open health coach settings"
               sx={{
-                color: theme.palette.mode === "dark" ? "#2196f3" : "#1976d2",
+                color: theme.palette.mode === "dark" ? "#90caf9" : "#1565c0",
               }}
             >
-              <BarChartIcon />
+              <SettingsIcon />
             </IconButton>
 
-            {messages.length > 0 && (
-              <>
-                <IconButton
-                  onClick={() => setShowHistoryPanel(true)}
-                  className={styles.actionButton}
-                  title="Conversation History"
-                  aria-label="View conversation history"
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark" ? "#9c27b0" : "#7b1fa2",
-                  }}
-                >
-                  <HistoryIcon />
-                </IconButton>
-
-                <IconButton
-                  onClick={handleExportConversation}
-                  className={styles.actionButton}
-                  title="Export Conversation"
-                  aria-label="Export conversation in multiple formats"
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark" ? "#2196f3" : "#1976d2",
-                  }}
-                >
-                  <DownloadIcon />
-                </IconButton>
-
-                <IconButton
-                  onClick={() => setShowClearDialog(true)}
-                  className={styles.actionButton}
-                  title="Clear Chat"
-                  aria-label="Clear chat history"
-                  sx={{
-                    color:
-                      theme.palette.mode === "dark" ? "#f44336" : "#d32f2f",
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </>
-            )}
+            <IconButton
+              onClick={toggleDisclaimer}
+              className={styles.actionButton}
+              title="Medical disclaimer"
+              aria-label="Show medical disclaimer"
+              sx={{
+                color: theme.palette.mode === "dark" ? "#ffb74d" : "#f57c00",
+              }}
+            >
+              <WarningAmberIcon />
+            </IconButton>
           </Box>
 
           {showDisclaimer && (
@@ -6051,80 +6471,13 @@ const HealthChatbot = () => {
             bodyCompositionReadings={bodyCompositionReadings}
             trackerData={trackerData}
             onZoneSelect={handleBodyZoneSelect}
+            onAskCoach={handleAskAvatarCoach}
+            onFocusChange={setAvatarFocus}
           />
           <Box className={styles.workspaceToolPanel}>
             {renderWorkspacePanel()}
           </Box>
         </Box>
-
-        {/* Quick Actions Bar */}
-        {messages.length > 0 && (
-          <Box className={styles.quickActionsBar}>
-            <Button
-              onClick={() => handleQuickAction("meal-plan")}
-              className={styles.quickActionButton}
-              startIcon={<RestaurantIcon />}
-              disabled={isStreaming}
-              aria-label="Request meal plan"
-            >
-              Meal Plan
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("supplement-check")}
-              className={styles.quickActionButton}
-              startIcon={<MedicationIcon />}
-              disabled={isStreaming}
-              aria-label="Check supplements"
-            >
-              Supplements
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("clinician-summary")}
-              className={styles.quickActionButton}
-              startIcon={<LocalHospitalIcon />}
-              disabled={isStreaming}
-              aria-label="Generate clinician summary"
-            >
-              Doctor Summary
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("audio-library")}
-              className={styles.quickActionButton}
-              startIcon={<SpaIcon />}
-              disabled={isStreaming}
-              aria-label="Open audio scripts library"
-            >
-              Audio Scripts
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("progress-tracker")}
-              className={styles.quickActionButton}
-              startIcon={<CalendarMonthIcon />}
-              disabled={isStreaming}
-              aria-label="Open progress tracker"
-            >
-              Progress
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("body-composition")}
-              className={styles.quickActionButton}
-              startIcon={<BarChartIcon />}
-              disabled={isStreaming}
-              aria-label="Open body composition history"
-            >
-              Body Comp
-            </Button>
-            <Button
-              onClick={() => handleQuickAction("weekly-plan")}
-              className={styles.quickActionButton}
-              startIcon={<CalendarMonthIcon />}
-              disabled={isStreaming}
-              aria-label="Request weekly plan"
-            >
-              Weekly Plan
-            </Button>
-          </Box>
-        )}
 
         {/* Usage Stats Display */}
         {user && usageStats && (
@@ -6211,15 +6564,26 @@ const HealthChatbot = () => {
           >
             Press Enter to send message, Shift+Enter for new line
           </Typography>
-          <IconButton
-            className={styles.sendButton}
-            onClick={() => sendMessage()}
-            disabled={!inputValue.trim() || isStreaming}
-            aria-label="Send message"
-            title="Send message"
-          >
-            <SendIcon />
-          </IconButton>
+          {isStreaming ? (
+            <IconButton
+              className={styles.stopButton}
+              onClick={handleStopGenerating}
+              aria-label="Stop generating"
+              title="Stop generating"
+            >
+              <StopIcon />
+            </IconButton>
+          ) : (
+            <IconButton
+              className={styles.sendButton}
+              onClick={() => sendMessage()}
+              disabled={!inputValue.trim()}
+              aria-label="Send message"
+              title="Send message"
+            >
+              <SendIcon />
+            </IconButton>
+          )}
         </Box>
 
         {/* Screen reader live region for streaming messages */}

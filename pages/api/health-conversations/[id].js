@@ -74,12 +74,28 @@ export default async function handler(req, res) {
       if (summary !== undefined) updateData.summary = summary;
       if (message_count !== undefined) updateData.message_count = message_count;
 
-      const { data: conversation, error } = await supabaseAdmin
+      let { data: conversation, error } = await supabaseAdmin
         .from("health_conversations")
         .update(updateData)
         .eq("id", id)
         .select()
         .single();
+
+      if (error?.code === "42703") {
+        const compatibleUpdateData = {};
+        if (messages !== undefined) compatibleUpdateData.messages = messages;
+        if (title !== undefined) compatibleUpdateData.title = title;
+
+        const retry = await supabaseAdmin
+          .from("health_conversations")
+          .update(compatibleUpdateData)
+          .eq("id", id)
+          .select()
+          .single();
+
+        conversation = retry.data;
+        error = retry.error;
+      }
 
       if (error) throw error;
 
