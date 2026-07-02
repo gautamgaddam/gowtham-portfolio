@@ -21,6 +21,15 @@ Make the app clear, responsive, accessible, and consistent with its existing vis
 - Ensure text fits within controls on mobile and desktop.
 - Prefer accessible color contrast and keyboard-reachable controls.
 
+## Health UI Skills
+
+For health workspace work, use local skills in `.agents/skills/`:
+
+- `health-ui-ux` for chat layout, panel navigation, and state feedback.
+- `three-health-avatar` for avatar canvas, focus selection, and cockpit controls.
+- `health-accessibility` for contrast, keyboard, screen-reader, and mobile checks.
+- `batman-dark-product-ui` for the black/neon clinical cockpit visual direction.
+
 ## Review Checklist
 
 - Does the affected page work at mobile and desktop widths?
@@ -28,4 +37,3 @@ Make the app clear, responsive, accessible, and consistent with its existing vis
 - Are destructive actions confirmable or clearly reversible?
 - Are icons paired with tooltips or labels when meaning is not obvious?
 - Are paid/locked states understandable without blocking navigation confusingly?
-

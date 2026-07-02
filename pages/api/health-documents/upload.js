@@ -7,6 +7,7 @@ import {
   requireHealthDatabase,
 } from "../../../lib/health-api-auth";
 import { processHealthDocument } from "../../../lib/health-document-processing";
+import bookKnowledge from "../../../lib/health-book-knowledge.cjs";
 
 export const config = {
   api: {
@@ -47,12 +48,14 @@ export default async function handler(req, res) {
 
     const { fields, files } = await parseForm(req);
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
-    if (!file) return res.status(400).json({ error: "PDF file is required" });
+    if (!file) return res.status(400).json({ error: "PDF or EPUB file is required" });
 
     const fileName = file.originalFilename || "health-document.pdf";
     const mimeType = file.mimetype || "application/pdf";
-    if (!mimeType.includes("pdf")) {
-      return res.status(400).json({ error: "Only PDF uploads are supported" });
+    const isPdf = mimeType.includes("pdf") || fileName.toLowerCase().endsWith(".pdf");
+    const isEpub = mimeType.includes("epub") || fileName.toLowerCase().endsWith(".epub");
+    if (!isPdf && !isEpub) {
+      return res.status(400).json({ error: "Only PDF and EPUB uploads are supported" });
     }
 
     await healthSupabaseAdmin.storage.createBucket("health-documents", {
@@ -71,10 +74,17 @@ export default async function handler(req, res) {
 
     if (uploadError) throw uploadError;
 
-    const tags = fieldValue(fields.tags)
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
+    const title = fieldValue(fields.title, fileName);
+    const author = fieldValue(fields.author);
+    const category = fieldValue(fields.category);
+    const bookMetadata = bookKnowledge.buildBookMetadata({
+      title,
+      author,
+      fileName,
+      category,
+      tags: bookKnowledge.parseTags(fieldValue(fields.tags)),
+      source: "dashboard-upload",
+    });
 
     const documentId = fieldValue(fields.documentId);
     let document;
@@ -99,8 +109,8 @@ export default async function handler(req, res) {
       const updateResult = await healthSupabaseAdmin
         .from("health_documents")
         .update({
-          title: fieldValue(fields.title, fileName),
-          author: fieldValue(fields.author),
+          title,
+          author,
           file_name: fileName,
           file_size_bytes: file.size || fileBuffer.length,
           mime_type: mimeType,
@@ -108,7 +118,8 @@ export default async function handler(req, res) {
           visibility: fieldValue(fields.visibility, "shared"),
           status: "processing",
           storage_path: storagePath,
-          tags,
+          tags: bookMetadata.tags,
+          metadata: bookMetadata.metadata,
           version: (existing.data?.version || 1) + 1,
           error_message: null,
         })
@@ -123,8 +134,8 @@ export default async function handler(req, res) {
         .from("health_documents")
         .insert({
           uploaded_by: user.id,
-          title: fieldValue(fields.title, fileName),
-          author: fieldValue(fields.author),
+          title,
+          author,
           file_name: fileName,
           file_size_bytes: file.size || fileBuffer.length,
           mime_type: mimeType,
@@ -132,9 +143,9 @@ export default async function handler(req, res) {
           visibility: fieldValue(fields.visibility, "shared"),
           status: "processing",
           storage_path: storagePath,
-          tags,
+          tags: bookMetadata.tags,
           version: 1,
-          metadata: {},
+          metadata: bookMetadata.metadata,
         })
         .select()
         .single();
@@ -150,6 +161,8 @@ export default async function handler(req, res) {
         supabaseAdmin: healthSupabaseAdmin,
         documentId: document.id,
         fileBuffer,
+        fileName,
+        mimeType,
       });
     } catch (processingError) {
       await healthSupabaseAdmin

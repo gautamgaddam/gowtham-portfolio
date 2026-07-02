@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     if (error) throw error;
     if (!document?.storage_path) {
-      return res.status(400).json({ error: "Document has no stored PDF path" });
+      return res.status(400).json({ error: "Document has no stored file path" });
     }
 
     await healthSupabaseAdmin
@@ -50,6 +50,8 @@ export default async function handler(req, res) {
         supabaseAdmin: healthSupabaseAdmin,
         documentId: id,
         fileBuffer,
+        fileName: document.file_name,
+        mimeType: document.mime_type,
       });
       return res.status(200).json(result);
     } catch (processingError) {

@@ -30,6 +30,15 @@ function checkinPayload(body = {}) {
   };
 }
 
+function isMissingTrackerSchema(error) {
+  return (
+    error?.code === "PGRST205" ||
+    error?.code === "42P01" ||
+    error?.message?.includes("health_goals") ||
+    error?.message?.includes("health_goal_checkins")
+  );
+}
+
 export default async function handler(req, res) {
   if (requireHealthDatabase(res)) return;
 
@@ -124,6 +133,20 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
+    if (isMissingTrackerSchema(error)) {
+      if (req.method === "GET") {
+        return res.status(200).json([]);
+      }
+
+      return res.status(200).json({
+        ...(req.body.checkin || req.body.goalId || req.body.goal_id
+          ? checkinPayload(req.body)
+          : goalPayload(req.body)),
+        schemaPending: true,
+        notPersisted: true,
+        message: "Health goals tracker tables are not available yet. Run supabase/health-bot-migration.sql if this persists.",
+      });
+    }
     console.error("Goals API error:", error);
     return res.status(500).json({ error: error.message || "Internal server error" });
   }

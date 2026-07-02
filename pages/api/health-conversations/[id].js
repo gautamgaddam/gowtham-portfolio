@@ -11,6 +11,17 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
+function isMissingConversationMetadataError(error) {
+  return (
+    error?.code === "42703" ||
+    error?.code === "PGRST204" ||
+    error?.message?.includes("'summary' column") ||
+    error?.message?.includes("'message_count' column") ||
+    error?.message?.includes("column health_conversations.summary does not exist") ||
+    error?.message?.includes("column health_conversations.message_count does not exist")
+  );
+}
+
 // Helper to extract user from JWT token
 async function getUserFromToken(req) {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -81,7 +92,7 @@ export default async function handler(req, res) {
         .select()
         .single();
 
-      if (error?.code === "42703") {
+      if (isMissingConversationMetadataError(error)) {
         const compatibleUpdateData = {};
         if (messages !== undefined) compatibleUpdateData.messages = messages;
         if (title !== undefined) compatibleUpdateData.title = title;

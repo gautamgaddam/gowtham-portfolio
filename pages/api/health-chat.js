@@ -120,6 +120,26 @@ When profile context includes body composition, symptoms, food logs, workouts, o
 
 When knowledgeContext includes uploaded health documents or book chunks, use them as supporting context alongside general model knowledge. Cite document title, chapter, and page when available. If page/chapter is unavailable, cite the document title or chunk context.
 
+When book context comes from naturopathy, natural-health, fasting, herbal, detox, alkaline, or remedy books, treat it as a source of ideas and historical/traditional framing, not as proof. Clearly separate "book/traditional perspective" from "better-established evidence" and "safety cautions." Do not present controversial book claims as established medical facts.
+
+When book context comes from bodybuilding or yoga books, treat it as training or lifestyle education. Adapt it to the user's profile, pain/symptom context, age band, pregnancy status, conditions, and medications when available. Do not push maximal lifting, extreme diets, fasting, breath retention, inversions, or aggressive flexibility work when contraindications, injury, pregnancy, dizziness, uncontrolled blood pressure, heart disease, eating disorder risk, or severe pain are present.
+
+When book/traditional context is used for a symptom, condition, supplement, remedy, diet, workout, or treatment question, always add a scientific/standard-care grounding section in the same answer:
+- Explain what better-established scientific or clinical guidance says, using evidence levels.
+- Name standard first-line lifestyle or medical-care concepts when relevant, without prescribing or changing medicines.
+- State what is experimental, unproven, adjunctive, or only traditional.
+- Include clinician review triggers, contraindications, and medication-interaction cautions.
+- If the book context conflicts with scientific evidence or safety guidance, say so clearly and prioritize safety and established care.
+- Never let book context replace evidence-based care, clinician diagnosis, prescribed medicines, emergency care, or monitoring.
+
+When the user asks about vitamins, minerals, supplements, or nutrition for inflammation or disease support:
+- Include typical adult daily intake targets such as RDA/AI when known, and tolerable upper limits when relevant.
+- Mention food-first sources before supplement dosing.
+- Mention key medication interactions, kidney/liver disease cautions, pregnancy cautions, and toxicity risks when relevant.
+- Explain that inflammation improvement timelines vary by disease, cause, deficiency status, sleep, diet, activity, medication, and clinician care.
+- Do not promise a cure or say a supplement will "cure inflammation" or "cure disease." Use language like "may support," "may help if deficient," and "review with a clinician."
+- If the user requests "how much time to cure inflammation," reframe to realistic monitoring windows: short-term symptom changes may take days to weeks, lab markers often need weeks to months, chronic inflammatory diseases require diagnosis and ongoing management.
+
 For meal, workout, and goal requests, use the user's profile, body composition, underlying conditions, symptoms, current daily tracker data, saved goals, budget/cuisine preferences, and relevant document context when available. Keep plans practical and saveable as daily tracker items.
 
 ═══════════════════════════════════════════════════════════════════════════
@@ -603,13 +623,17 @@ function detectEmergencyOrCrisis(message) {
 
   // Medical emergencies
   const medicalEmergencyPatterns = [
-    /chest pain|chest pressure|chest tightness|heart attack/i,
+    /chest pain|chest pressure|chest tightness/i,
     /can't breathe|cannot breathe|difficulty breathing|severe breathlessness|can't catch my breath/i,
     /stroke|face droop|arm weakness|sudden confusion|vision loss|worst headache/i,
     /anaphylaxis|throat swelling|tongue swelling|face swelling|allergic reaction.*breathing/i,
     /severe bleeding|won't stop bleeding|bleeding heavily/i,
     /collapsed|lost consciousness|passed out|blacked out/i,
     /severe abdominal pain|acute abdomen/i,
+  ];
+  const heartAttackEmergencyPatterns = [
+    /\b(i|we|he|she|they|my\s+\w+|someone)\b.{0,60}\b(having|might be having|may be having|think.*having|symptoms? of)\b.{0,40}\bheart attack\b/i,
+    /\bheart attack\b.{0,50}\b(right now|now|emergency|call 911|ambulance|er|urgent|severe pain|can't breathe|cannot breathe|sweating|jaw pain|left arm pain)\b/i,
   ];
 
   // Mental health crisis
@@ -637,6 +661,16 @@ function detectEmergencyOrCrisis(message) {
 
   // Check medical emergencies
   for (const pattern of medicalEmergencyPatterns) {
+    if (pattern.test(content)) {
+      return {
+        isEmergency: true,
+        emergencyType: "medical",
+        urgencyLevel: "immediate-911",
+      };
+    }
+  }
+
+  for (const pattern of heartAttackEmergencyPatterns) {
     if (pattern.test(content)) {
       return {
         isEmergency: true,
@@ -1260,9 +1294,13 @@ export default async function handler(req, res) {
           const citation = kb.content_type === "document_chunk"
             ? `Source: ${kb.metadata?.title || kb.title || "Uploaded document"}${kb.metadata?.chapter ? `, ${kb.metadata.chapter}` : ""}${kb.metadata?.page_start ? `, page ${kb.metadata.page_start}` : ""}`
             : "Source: prior health history";
-          return `[${kb.content_type}] ${citation}\n${kb.content.substring(0, 700)}${kb.content.length > 700 ? '...' : ''}`;
+          const category = kb.metadata?.category ? ` Category: ${kb.metadata.category}.` : "";
+          const sourceType = kb.metadata?.source === "books-folder" || kb.metadata?.source === "dashboard-upload"
+            ? `Book library context.${category} Use as supporting context with evidence and safety checks.`
+            : "";
+          return `[${kb.content_type}] ${citation}${sourceType ? `\n${sourceType}` : ""}\n${kb.content.substring(0, 700)}${kb.content.length > 700 ? '...' : ''}`;
         }).join("\n\n") +
-        "\n\nUse the above context to provide personalized, continuous care. Reference past discussions where relevant and cite uploaded documents when used.";
+        "\n\nUse the above context to provide personalized, continuous care. Reference past discussions where relevant and cite uploaded documents/books when used. For naturopathy/natural-health books, separate the book perspective from scientific/standard-care guidance, evidence level, and safety cautions. For bodybuilding and yoga books, adapt training guidance conservatively to the user's health profile and injury risk. If book context conflicts with established evidence or safety guidance, prioritize safety and established care.";
       
       messagesToSend.push({ role: "system", content: kbContent });
     }

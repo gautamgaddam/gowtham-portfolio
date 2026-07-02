@@ -25,6 +25,14 @@ function payload(body = {}) {
   };
 }
 
+function isMissingTrackerSchema(error) {
+  return (
+    error?.code === "PGRST205" ||
+    error?.code === "42P01" ||
+    error?.message?.includes("health_activity_entries")
+  );
+}
+
 export default async function handler(req, res) {
   if (requireHealthDatabase(res)) return;
 
@@ -80,6 +88,14 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
+    if (isMissingTrackerSchema(error)) {
+      return res.status(200).json({
+        ...payload(req.body),
+        schemaPending: true,
+        notPersisted: true,
+        message: "Health activity tracker table is not available yet. Run supabase/health-bot-migration.sql if this persists.",
+      });
+    }
     console.error("Activity entry API error:", error);
     return res.status(500).json({ error: error.message || "Internal server error" });
   }

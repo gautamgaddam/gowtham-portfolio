@@ -13,6 +13,15 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   : null;
 const FULL_ACCESS_MONTHLY_LIMIT = 999999;
 
+function isMissingColumnError(error, columnName) {
+  return (
+    error?.code === "42703" ||
+    error?.code === "PGRST204" ||
+    error?.message?.includes(`'${columnName}' column`) ||
+    error?.message?.includes(`column health_conversations.${columnName} does not exist`)
+  );
+}
+
 // Helper to extract user from JWT token
 async function getUserFromToken(req) {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -105,26 +114,27 @@ export default async function handler(req, res) {
 
     } else if (req.method === "POST") {
       // Create new conversation
-      const { title } = req.body;
+      const { title, messages } = req.body;
+      const conversationMessages = Array.isArray(messages) ? messages : [];
 
       let { data: conversation, error } = await supabaseAdmin
         .from("health_conversations")
         .insert({
           user_id: user.id,
           title: title || "New Conversation",
-          messages: [],
-          message_count: 0,
+          messages: conversationMessages,
+          message_count: conversationMessages.length,
         })
         .select()
         .single();
 
-      if (error?.code === "42703") {
+      if (isMissingColumnError(error, "message_count")) {
         const retry = await supabaseAdmin
           .from("health_conversations")
           .insert({
             user_id: user.id,
             title: title || "New Conversation",
-            messages: [],
+            messages: conversationMessages,
           })
           .select()
           .single();

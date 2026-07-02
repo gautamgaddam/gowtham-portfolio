@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { embedHealthText } from "../../../lib/health-ai-provider";
+import bookKnowledge from "../../../lib/health-book-knowledge.cjs";
 
 export const config = {
   runtime: "nodejs",
@@ -12,6 +13,14 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 const ADMIN_EMAIL = "gautammaddyson@gmail.com";
+
+function isMissingSearchFunction(error) {
+  return (
+    error?.code === "PGRST202" ||
+    error?.code === "42883" ||
+    error?.message?.includes("Could not find the function")
+  );
+}
 
 // Helper to extract user from JWT token
 async function getUserFromToken(req) {
@@ -59,36 +68,58 @@ export default async function handler(req, res) {
       }
     );
 
+    if (isMissingSearchFunction(error)) {
+      return res.status(200).json({ results: [], count: 0 });
+    }
+
     if (error) throw error;
 
+    const documentLimit = Math.max(limit * 2, limit);
     const { data: documentResults, error: documentError } = await supabaseAdmin.rpc(
       "match_health_document_chunks",
       {
         query_embedding: queryEmbedding,
         match_threshold: Math.min(threshold, 0.65),
-        match_count: limit,
+        match_count: documentLimit,
         include_admin_only: user.email?.toLowerCase() === ADMIN_EMAIL,
       },
     );
 
+    if (isMissingSearchFunction(documentError)) {
+      return res.status(200).json({
+        results: results || [],
+        count: results?.length || 0,
+      });
+    }
+
     if (documentError) throw documentError;
+
+    const rankedDocumentResults = bookKnowledge
+      .rankHealthBookResults(documentResults || [], query)
+      .slice(0, limit);
 
     return res.status(200).json({
       results: [
         ...(results || []),
-        ...(documentResults || []).map((item) => ({
+        ...rankedDocumentResults.map((item) => ({
           ...item,
           content_type: "document_chunk",
           metadata: {
+            ...(item.metadata || {}),
             title: item.title,
             author: item.author,
+            category: item.metadata?.category || bookKnowledge.inferBookCategory(
+              item.title,
+              item.author,
+              item.content,
+            ),
             page_start: item.page_start,
             page_end: item.page_end,
             chapter: item.chapter,
           },
         })),
       ],
-      count: (results?.length || 0) + (documentResults?.length || 0),
+      count: (results?.length || 0) + rankedDocumentResults.length,
     });
 
   } catch (error) {

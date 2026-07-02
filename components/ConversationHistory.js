@@ -17,14 +17,28 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ChatIcon from "@mui/icons-material/Chat";
 import { useTheme } from "@mui/material/styles";
 
-const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, user }) => {
+const ConversationHistory = ({
+  open,
+  onClose,
+  onSelect,
+  activeConversationId,
+  user,
+  localMessages = [],
+  onSyncLocal,
+}) => {
   const theme = useTheme();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState("");
+  const [syncingLocal, setSyncingLocal] = useState(false);
   const LIMIT = 10;
+  const hasLocalConversation = localMessages.some((message) =>
+    ["user", "assistant"].includes(message.role) &&
+    typeof message.content === "string" &&
+    message.content.trim()
+  );
 
   useEffect(() => {
     if (open && user) {
@@ -79,6 +93,25 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
 
   const handleLoadMore = () => {
     loadConversations(offset);
+  };
+
+  const handleSyncLocal = async () => {
+    if (!onSyncLocal) return;
+    setSyncingLocal(true);
+    setError("");
+    try {
+      const conversationId = await onSyncLocal();
+      if (!conversationId) {
+        setError("Could not sync the local chat. Send one new message, then reopen history.");
+        return;
+      }
+      await loadConversations(0);
+    } catch (error) {
+      console.error("Error syncing local chat:", error);
+      setError(error.message || "Could not sync the local chat.");
+    } finally {
+      setSyncingLocal(false);
+    }
   };
 
   const handleDelete = async (conversationId, event) => {
@@ -171,6 +204,17 @@ const ConversationHistory = ({ open, onClose, onSelect, activeConversationId, us
             <Typography variant="body2" color="text.secondary">
               No conversations yet
             </Typography>
+            {hasLocalConversation && onSyncLocal && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSyncLocal}
+                disabled={syncingLocal}
+                sx={{ mt: 2, fontWeight: 800 }}
+              >
+                {syncingLocal ? "Syncing..." : "Save current chat to history"}
+              </Button>
+            )}
           </Box>
         ) : (
           <List>

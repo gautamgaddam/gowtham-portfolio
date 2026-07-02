@@ -20,8 +20,11 @@ import * as THREE from "three";
 import { createSupabaseClient } from "../lib/supabase";
 import { useAuth } from "../lib/auth-context";
 import { calculateBodyComposition } from "../lib/body-composition";
+import bookKnowledge from "../lib/health-book-knowledge.cjs";
 
 const ADMIN_EMAIL = "gautammaddyson@gmail.com";
+const BOOK_CATEGORIES = bookKnowledge.BOOK_CATEGORIES;
+const SUPPORTING_BOOK_TAGS = bookKnowledge.SUPPORTING_BOOK_TAGS;
 const BODY_SYSTEMS = [
   { id: "surface", label: "Surface body", color: 0x18c7c9 },
   { id: "skeletal", label: "Skeletal", color: 0xe8eef7 },
@@ -628,17 +631,24 @@ export function BodyDashboardPanel({
   const relevantGoals = (trackerData?.goals || []).slice(0, 3);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Box sx={{ display: "grid", gap: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>
-          3D Health Profile Avatar
-        </Typography>
-        <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-          Purple areas are linked to profile context, orange areas come from symptom logs, and cyan areas are your manual coaching focus. This is not diagnosis.
-        </Typography>
+    <Box className="healthAvatarCockpit" sx={{ display: "grid", gap: 2 }}>
+      <Box className="healthCockpitHeader">
+        <Box sx={{ display: "grid", gap: 0.5 }}>
+          <Typography variant="caption" className="healthCockpitEyebrow">
+            3D FOCUS SELECTOR
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 900 }}>
+            Health Profile Avatar
+          </Typography>
+        </Box>
+        <Chip size="small" color="primary" label={`${systemLabel(selectedSystem)} / ${regionLabel(focusedRegion)}`} />
       </Box>
 
-      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+      <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+        Purple areas are profile-linked, orange areas are symptom logs, and cyan areas are manual coaching focus. This is not diagnosis.
+      </Typography>
+
+      <Box className="healthSystemControls">
         {BODY_SYSTEMS.map((system) => (
           <Button
             key={system.id}
@@ -652,11 +662,11 @@ export function BodyDashboardPanel({
         ))}
       </Box>
 
-      <Box sx={{ height: 420, border: "2px solid #111", bgcolor: "#050b12" }}>
+      <Box className="healthAvatarCanvas">
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+      <Box className="healthAvatarActions">
         <Button size="small" onClick={() => setViewRotation(0)}>Front</Button>
         <Button size="small" onClick={() => setViewRotation(Math.PI)}>Back</Button>
         <Button size="small" onClick={() => setZoom((current) => Math.max(5.5, current - 0.5))}>Zoom In</Button>
@@ -664,20 +674,19 @@ export function BodyDashboardPanel({
         <Button size="small" color="error" onClick={clearHighlights}>Clear Highlights</Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+      <Box className="healthSignalStrip">
         <Chip label={`Level ${level}`} />
         <Chip label={`${xp} XP today`} />
         <Chip label={`${bodyCompositionReadings?.length || 0} body readings`} />
         <Chip label={`${profileSignals.length} profile signals`} />
-        <Chip color="primary" label={`${systemLabel(selectedSystem)} / ${regionLabel(focusedRegion)}`} />
       </Box>
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
+      <Box className="healthMetricGrid">
         <Chip label={`Weight ${metric(body.weightKg, " kg")}`} />
         <Chip label={`BMI ${metric(body.bmi)}`} />
         <Chip label={`Fat mass ${metric(body.fatMassKg, " kg")}`} />
         <Chip label={`Lean mass ${metric(body.leanMassKg, " kg")}`} />
       </Box>
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+      <Box className="healthRegionControls">
         {BODY_REGIONS.map((region) => (
           <Button
             key={region.id}
@@ -693,7 +702,7 @@ export function BodyDashboardPanel({
         ))}
       </Box>
 
-      <Box sx={{ border: "1px solid #333", p: 1.5, display: "grid", gap: 1 }}>
+      <Box className="healthFocusCard">
         <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
           Selected focus
         </Typography>
@@ -730,9 +739,20 @@ export function BodyDashboardPanel({
         <Typography variant="caption" sx={{ color: "#9ca3af" }}>
           Use this view to choose a coaching topic from your profile, body composition, symptoms, goals, and habits. It should guide questions, not label disease.
         </Typography>
-        <Button variant="contained" onClick={askCoach}>
-          Ask Coach About This
-        </Button>
+        <Box className="healthCockpitActions">
+          <Button variant="contained" onClick={askCoach}>
+            Ask Coach
+          </Button>
+          <Button variant="outlined" onClick={askCoach}>
+            Find Videos
+          </Button>
+          <Button variant="outlined" onClick={() => toggleHighlight(focusedRegion, selectedSystem)}>
+            Log Focus
+          </Button>
+          <Button variant="outlined" color="error" onClick={clearHighlights}>
+            Clear
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ display: "grid", gap: 0.75 }}>
@@ -1025,8 +1045,20 @@ export function DocumentsPanel() {
   const [state, setState] = useState({ documents: [], isAdmin: false });
   const [selected, setSelected] = useState(null);
   const [chunks, setChunks] = useState([]);
-  const [form, setForm] = useState({ title: "", author: "", tags: "", visibility: "shared" });
+  const [form, setForm] = useState({
+    title: "",
+    author: "",
+    category: "naturopathy",
+    tags: "",
+    visibility: "shared",
+  });
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL && state.isAdmin;
+  const bookDocuments = state.documents.filter((document) => document.source_kind === "book");
+  const readyBookCount = bookDocuments.filter((document) => document.status === "ready").length;
+  const totalBookChunks = bookDocuments.reduce(
+    (sum, document) => sum + (document.chunk_count || 0),
+    0,
+  );
 
   const load = async () => {
     const response = await authedFetch("/api/health-documents");
@@ -1045,6 +1077,7 @@ export function DocumentsPanel() {
     body.append("file", file);
     body.append("title", form.title || file.name);
     body.append("author", form.author);
+    body.append("category", form.category);
     body.append("tags", form.tags);
     body.append("visibility", form.visibility);
     if (documentId) body.append("documentId", documentId);
@@ -1066,6 +1099,7 @@ export function DocumentsPanel() {
     setForm({
       title: data.document.title || "",
       author: data.document.author || "",
+      category: data.document.metadata?.category || "naturopathy",
       tags: (data.document.tags || []).join(", "),
       visibility: data.document.visibility || "shared",
     });
@@ -1075,7 +1109,10 @@ export function DocumentsPanel() {
     if (!selected) return;
     await authedFetch(`/api/health-documents/${selected.id}`, {
       method: "PATCH",
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        metadata: selected.metadata || {},
+      }),
     });
     await preview(selected);
     await load();
@@ -1098,10 +1135,27 @@ export function DocumentsPanel() {
       {isAdmin && (
         <Box sx={{ border: "1px solid #333", p: 2, display: "grid", gap: 1 }}>
           <Typography variant="h6">Admin Library Upload</Typography>
-          <input ref={fileRef} type="file" accept="application/pdf,.pdf" />
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 140px", gap: 1 }}>
+          <input ref={fileRef} type="file" accept="application/pdf,application/epub+zip,.pdf,.epub" />
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "minmax(0, 1fr) minmax(0, 1fr) 170px minmax(0, 1fr) 140px",
+              },
+              gap: 1,
+            }}
+          >
             <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <TextField label="Author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
+            <FormControl>
+              <InputLabel>Category</InputLabel>
+              <Select label="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                {BOOK_CATEGORIES.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>{category.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField label="Tags" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
             <FormControl>
               <InputLabel>Visibility</InputLabel>
@@ -1112,18 +1166,43 @@ export function DocumentsPanel() {
             </FormControl>
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button startIcon={<UploadIcon />} variant="contained" onClick={() => upload()}>Upload PDF</Button>
-            {selected && <Button onClick={() => upload(selected.id)}>Replace Selected PDF</Button>}
+            <Button startIcon={<UploadIcon />} variant="contained" onClick={() => upload()}>Upload Book</Button>
+            {selected && <Button onClick={() => upload(selected.id)}>Replace Selected File</Button>}
             {selected && <Button startIcon={<SaveIcon />} onClick={saveMetadata}>Save Metadata</Button>}
           </Box>
+          <Typography variant="caption" sx={{ color: "#94a3b8" }}>
+            Suggested tags: {SUPPORTING_BOOK_TAGS.join(", ")}
+          </Typography>
         </Box>
       )}
+      <Box sx={{ border: "1px solid #243244", p: 2, display: "grid", gap: 1, background: "#071018" }}>
+        <Typography variant="h6">Health Book Knowledge Base</Typography>
+        <Typography variant="body2" sx={{ color: "#cbd5e1" }}>
+          Imported books are categorized, chunked, embedded, and used as supporting context in chat responses.
+          Natural-health book claims are treated as source context, not diagnosis or proof.
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Chip size="small" label={`${readyBookCount}/${bookDocuments.length} books ready`} />
+          <Chip size="small" label={`${totalBookChunks} embedded chunks`} />
+          <Chip size="small" label="vitamin/mineral intake guidance enabled" />
+        </Box>
+        {isAdmin && (
+          <Typography variant="caption" sx={{ color: "#94a3b8" }}>
+            Local folder import: run npm run import:health-books after applying supabase/health-bot-migration.sql.
+          </Typography>
+        )}
+      </Box>
       <Box sx={{ display: "grid", gap: 1 }}>
         {state.documents.map((document) => (
           <Box key={document.id} sx={{ border: "1px solid #333", p: 1.5, display: "grid", gap: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "center" }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{document.title}</Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
+                <Chip size="small" label={document.source_kind || "document"} />
+                <Chip size="small" label={document.metadata?.category || "uncategorized"} />
+                {document.metadata?.source === "books-folder" && (
+                  <Chip size="small" label="books/" color="primary" />
+                )}
                 <Chip size="small" label={document.status} />
                 <Chip size="small" label={`${document.chunk_count || 0} chunks`} />
                 <Button size="small" onClick={() => preview(document)}>Preview</Button>

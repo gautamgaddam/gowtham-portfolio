@@ -4,23 +4,32 @@ import {
   isHealthAdmin,
   requireHealthDatabase,
 } from "../../../lib/health-api-auth";
+import bookKnowledge from "../../../lib/health-book-knowledge.cjs";
 
 export const config = {
   runtime: "nodejs",
 };
 
 function metadataPayload(body = {}) {
+  const title = body.title || "";
+  const author = body.author || "";
+  const category = body.category || body.metadata?.category || "";
+  const bookMetadata = bookKnowledge.buildBookMetadata({
+    title,
+    author,
+    category,
+    tags: body.tags,
+    source: body.metadata?.source || "dashboard-upload",
+    existingMetadata: body.metadata || {},
+  });
+
   return {
-    title: body.title || "",
-    author: body.author || "",
+    title,
+    author,
     source_kind: body.sourceKind || body.source_kind || "book",
     visibility: body.visibility || "shared",
-    tags: Array.isArray(body.tags)
-      ? body.tags
-      : String(body.tags || "")
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+    tags: bookMetadata.tags,
+    metadata: bookMetadata.metadata,
   };
 }
 
@@ -61,14 +70,31 @@ export default async function handler(req, res) {
     if (!isHealthAdmin(user)) return res.status(403).json({ error: "Admin only" });
 
     if (req.method === "PATCH") {
+      const payload = metadataPayload(req.body);
       const { data, error } = await healthSupabaseAdmin
         .from("health_documents")
-        .update(metadataPayload(req.body))
+        .update(payload)
         .eq("id", id)
         .select()
         .single();
 
       if (error) throw error;
+
+      const { error: chunkUpdateError } = await healthSupabaseAdmin
+        .from("health_document_chunks")
+        .update({
+          topics: payload.tags,
+          metadata: {
+            ...payload.metadata,
+            title: payload.title,
+            author: payload.author,
+            tags: payload.tags,
+          },
+        })
+        .eq("document_id", id);
+
+      if (chunkUpdateError) throw chunkUpdateError;
+
       return res.status(200).json(data);
     }
 

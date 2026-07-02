@@ -50,6 +50,12 @@ import ContrastIcon from "@mui/icons-material/Contrast";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import SettingsIcon from "@mui/icons-material/Settings";
 import YouTubeIcon from "@mui/icons-material/YouTube";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import { useTheme } from "@mui/material/styles";
 import gsap, { Power3 } from "gsap";
 import styles from "../styles/health.module.css";
@@ -74,14 +80,17 @@ const PROFILE_STORAGE_KEY = "health_user_profile";
 const ANALYTICS_STORAGE_KEY = "health_analytics";
 const ACCESSIBILITY_STORAGE_KEY = "health_accessibility_settings";
 const MAX_HISTORY = 50;
+const SIDE_PANEL_WIDTH_KEY = "health_side_panel_width";
+const SIDE_PANEL_COLLAPSED_KEY = "health_side_panel_collapsed";
+const SIDE_PANEL_DEFAULT_WIDTH = 340;
+const SIDE_PANEL_MIN_WIDTH = 300;
+const SIDE_PANEL_COLLAPSED_WIDTH = 48;
 const HEALTH_WORKSPACE_TABS = [
   { id: "chat", label: "Chat" },
-  { id: "tracker", label: "Daily Tracker" },
-  { id: "body", label: "Body" },
+  { id: "avatar", label: "Avatar" },
+  { id: "tracker", label: "Tracker" },
   { id: "plans", label: "Plans" },
-  { id: "videos", label: "Videos" },
-  { id: "uploads", label: "Uploads" },
-  { id: "documents", label: "Documents" },
+  { id: "library", label: "Library" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -2876,6 +2885,129 @@ const FormattedMessage = ({ content }) => {
   return <Box className={styles.formattedContent}>{formatText(content)}</Box>;
 };
 
+const ChatResourceSuggestions = ({ suggestions, onPromptClick }) => {
+  const videos = Array.isArray(suggestions?.videos) ? suggestions.videos : [];
+  const webResults = Array.isArray(suggestions?.webResults)
+    ? suggestions.webResults
+    : [];
+  const followUpPrompts = Array.isArray(suggestions?.followUpPrompts)
+    ? suggestions.followUpPrompts
+    : [];
+
+  if (
+    !suggestions?.suggestionsLoading &&
+    !suggestions?.suggestionError &&
+    videos.length === 0 &&
+    webResults.length === 0 &&
+    followUpPrompts.length === 0
+  ) {
+    return null;
+  }
+
+  return (
+    <Box
+      className={styles.chatSuggestionsPanel}
+      aria-label="Related educational resources and next questions"
+    >
+      <Box className={styles.chatSuggestionsHeader}>
+        <Typography variant="caption" sx={{ fontWeight: 900 }}>
+          External educational resources
+        </Typography>
+        {suggestions?.suggestionsLoading && (
+          <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+            Finding related resources...
+          </Typography>
+        )}
+      </Box>
+
+      {suggestions?.suggestionError && !suggestions?.suggestionsLoading && (
+        <Alert severity="info" className={styles.suggestionNotice}>
+          {suggestions.suggestionError}
+        </Alert>
+      )}
+
+      {videos.length > 0 && (
+        <Box className={styles.inlineVideoGrid}>
+          {videos.map((video) => (
+            <Box
+              key={video.id}
+              component="a"
+              href={video.url}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.inlineVideoCard}
+            >
+              <Box
+                component="img"
+                src={video.thumbnail}
+                alt=""
+                className={styles.inlineVideoThumb}
+              />
+              <Box className={styles.inlineResourceText}>
+                <Typography variant="body2" className={styles.inlineResourceTitle}>
+                  <YouTubeIcon fontSize="small" />
+                  {video.title}
+                </Typography>
+                <Typography variant="caption" className={styles.inlineResourceMeta}>
+                  {[video.channel, video.duration].filter(Boolean).join(" | ")}
+                </Typography>
+                <Typography variant="caption" className={styles.inlineResourceMeta}>
+                  {[video.published, video.viewCount].filter(Boolean).join(" | ")}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {webResults.length > 0 && (
+        <Box className={styles.inlineWebList}>
+          {webResults.map((result, index) => (
+            <Box
+              key={`${result.url}-${index}`}
+              component="a"
+              href={result.url}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.inlineWebResult}
+            >
+              <Box className={styles.inlineResourceText}>
+                <Typography variant="body2" className={styles.inlineResourceTitle}>
+                  <OpenInNewIcon fontSize="small" />
+                  {result.title}
+                </Typography>
+                {result.snippet && (
+                  <Typography variant="caption" className={styles.inlineResourceMeta}>
+                    {result.snippet}
+                  </Typography>
+                )}
+                {result.source && (
+                  <Typography variant="caption" className={styles.inlineResourceMeta}>
+                    {result.source}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {followUpPrompts.length > 0 && (
+        <Box className={styles.followUpPromptGroup} aria-label="Ask next">
+          {followUpPrompts.map((prompt) => (
+            <Chip
+              key={prompt}
+              label={prompt}
+              onClick={() => onPromptClick(prompt)}
+              className={styles.followUpPromptChip}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ACCESSIBILITY PANEL COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3994,6 +4126,10 @@ const HealthChatbot = () => {
   const [draftMessage, setDraftMessage] = useState("");
   const [bodyCompositionReadings, setBodyCompositionReadings] = useState([]);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("chat");
+  const [activeLibraryTab, setActiveLibraryTab] = useState("videos");
+  const [sidePanelWidth, setSidePanelWidth] = useState(SIDE_PANEL_DEFAULT_WIDTH);
+  const [isSidePanelCollapsed, setIsSidePanelCollapsed] = useState(false);
+  const [isSidePanelResizing, setIsSidePanelResizing] = useState(false);
   const [trackerData, setTrackerData] = useState({
     log: null,
     food: [],
@@ -4023,6 +4159,7 @@ const HealthChatbot = () => {
   const supabase = createSupabaseClient();
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [conversationSaveError, setConversationSaveError] = useState("");
   const [usageStats, setUsageStats] = useState(null);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
@@ -4030,6 +4167,33 @@ const HealthChatbot = () => {
   const abortControllerRef = useRef(null);
   const containerRef = useRef(null);
   const disclaimerRef = useRef(null);
+  const localConversationSyncRef = useRef(false);
+
+  useEffect(() => {
+    const storedWidth = Number.parseInt(
+      localStorage.getItem(SIDE_PANEL_WIDTH_KEY) || "",
+      10,
+    );
+    if (Number.isFinite(storedWidth)) {
+      setSidePanelWidth(
+        Math.min(Math.max(storedWidth, SIDE_PANEL_MIN_WIDTH), 760),
+      );
+    }
+    setIsSidePanelCollapsed(
+      localStorage.getItem(SIDE_PANEL_COLLAPSED_KEY) === "true",
+    );
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(SIDE_PANEL_WIDTH_KEY, String(sidePanelWidth));
+  }, [sidePanelWidth]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      SIDE_PANEL_COLLAPSED_KEY,
+      String(isSidePanelCollapsed),
+    );
+  }, [isSidePanelCollapsed]);
 
   // Load chat history and user profile on mount
   useEffect(() => {
@@ -4042,8 +4206,13 @@ const HealthChatbot = () => {
         if (!loadedFromDb) {
           const stored = localStorage.getItem(STORAGE_KEY);
           if (stored) {
-            const parsed = JSON.parse(stored);
-            setMessages(parsed.slice(-MAX_HISTORY));
+            const parsed = JSON.parse(stored).slice(-MAX_HISTORY);
+            setMessages(parsed);
+            if (user && parsed.length > 0) {
+              syncLocalConversationToDb(parsed).catch((error) => {
+                console.error("Error syncing local conversation:", error);
+              });
+            }
           }
         }
 
@@ -4874,7 +5043,7 @@ const HealthChatbot = () => {
         return;
       case "body-composition":
         setShowBodyCompositionHistory(true);
-        setActiveWorkspaceTab("body");
+        setActiveWorkspaceTab("avatar");
         return;
       default:
         break;
@@ -5157,11 +5326,22 @@ const HealthChatbot = () => {
     }
   };
 
+  const getPersistableMessages = (messagesToPersist = []) =>
+    messagesToPersist
+      .filter((message) =>
+        ["user", "assistant"].includes(message.role) &&
+        typeof message.content === "string" &&
+        message.content.trim() &&
+        !message.isError
+      )
+      .slice(-MAX_HISTORY);
+
   const saveConversationToDb = async (conversationId, messagesToSave) => {
     if (!user || !supabase) return null;
 
     try {
       setIsSaving(true);
+      setConversationSaveError("");
       
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
@@ -5182,13 +5362,21 @@ const HealthChatbot = () => {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ title }),
+          body: JSON.stringify({
+            title,
+            messages: getPersistableMessages(messagesToSave),
+          }),
         });
 
         if (response.ok) {
           const data = await response.json();
           convId = data.id;
           setActiveConversationId(convId);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || `Failed to create conversation (${response.status})`,
+          );
         }
       }
 
@@ -5207,18 +5395,38 @@ const HealthChatbot = () => {
         });
 
         if (!updateResponse.ok) {
-          throw new Error("Failed to update conversation");
+          const errorData = await updateResponse.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || `Failed to update conversation (${updateResponse.status})`,
+          );
         }
       }
 
       return convId;
     } catch (error) {
       console.error("Error saving conversation:", error);
+      setConversationSaveError(error.message || "Save failed");
       // Silently fail - localStorage fallback already active
       return null;
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const syncLocalConversationToDb = async (localMessages) => {
+    if (localConversationSyncRef.current) return null;
+    if (activeConversationId) return null;
+    const persistableMessages = getPersistableMessages(localMessages);
+    const hasUserMessage = persistableMessages.some((message) => message.role === "user");
+    const hasAssistantMessage = persistableMessages.some((message) => message.role === "assistant");
+    if (!hasUserMessage || !hasAssistantMessage) return null;
+
+    localConversationSyncRef.current = true;
+    const conversationId = await saveConversationToDb(null, persistableMessages);
+    if (!conversationId) {
+      localConversationSyncRef.current = false;
+    }
+    return conversationId;
   };
 
   const loadConversationFromDb = async () => {
@@ -5265,6 +5473,36 @@ const HealthChatbot = () => {
     return false;
   };
 
+  const buildKnowledgeSearchQuery = (userMessage) => {
+    const profileConditions = Array.isArray(userProfile?.conditions)
+      ? userProfile.conditions.slice(0, 8).join(", ")
+      : "";
+    const profileGoals = Array.isArray(userProfile?.goals)
+      ? userProfile.goals.slice(0, 6).join(", ")
+      : "";
+    const focusContext = avatarFocus
+      ? [
+          avatarFocus.systemLabel ? `body system: ${avatarFocus.systemLabel}` : "",
+          avatarFocus.regionLabel ? `body region: ${avatarFocus.regionLabel}` : "",
+          ...(avatarFocus.profileSignals || [])
+            .slice(0, 4)
+            .map((signal) => `profile signal: ${signal.label}${signal.detail ? ` ${signal.detail}` : ""}`),
+        ]
+          .filter(Boolean)
+          .join("; ")
+      : "";
+
+    return [
+      userMessage,
+      focusContext ? `Selected avatar focus: ${focusContext}` : "",
+      profileConditions ? `Known profile conditions: ${profileConditions}` : "",
+      profileGoals ? `Health goals: ${profileGoals}` : "",
+      "Retrieve relevant book context for naturopathy, bodybuilding, yoga, nutrition, strength training, mobility, breathwork, recovery, vitamins, minerals, inflammation, safety cautions, and evidence-aware lifestyle support.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
   const fetchRelevantContext = async (userMessage) => {
     if (!user || !supabase) return [];
 
@@ -5279,9 +5517,9 @@ const HealthChatbot = () => {
           "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          query: userMessage,
-          limit: 3,
-          threshold: 0.7,
+          query: buildKnowledgeSearchQuery(userMessage),
+          limit: 6,
+          threshold: 0.55,
         }),
       });
 
@@ -5294,6 +5532,37 @@ const HealthChatbot = () => {
     }
     return [];
   };
+
+  const buildAssistantSources = (knowledgeContext = []) => {
+    const seen = new Set();
+    return knowledgeContext
+      .filter((item) => item?.content_type === "document_chunk")
+      .map((item) => {
+        const metadata = item.metadata || {};
+        const title = metadata.title || item.title || "Health document";
+        const source = metadata.source || "";
+        const author = metadata.author || item.author || "";
+        const page = metadata.page_start || item.page_start || "";
+        const key = [title, source, author, page].join("|");
+        if (seen.has(key)) return null;
+        seen.add(key);
+        const isBookSource = source === "books-folder" || source === "dashboard-upload" || Boolean(metadata.category);
+        return {
+          type: isBookSource ? "book" : "document",
+          title,
+          author,
+          page,
+          source,
+          category: metadata.category || "",
+          similarity: item.similarity || null,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+  };
+
+  const hasBookSource = (sources = []) =>
+    sources.some((source) => source.type === "book" || source.source === "books-folder");
 
   const embedConversationSummary = async (conversationId, messagesToEmbed) => {
     if (!user || !supabase || !conversationId || messagesToEmbed.length < 5) return;
@@ -5331,6 +5600,86 @@ const HealthChatbot = () => {
     }
   };
 
+  const compactSuggestions = (suggestions = {}) => ({
+    videos: Array.isArray(suggestions.videos) ? suggestions.videos.slice(0, 4) : [],
+    webResults: Array.isArray(suggestions.webResults)
+      ? suggestions.webResults.slice(0, 4)
+      : [],
+    followUpPrompts: Array.isArray(suggestions.followUpPrompts)
+      ? suggestions.followUpPrompts.slice(0, 3)
+      : [],
+    intent: suggestions.intent || "general",
+    query: Array.isArray(suggestions.searchQueries)
+      ? suggestions.searchQueries[0] || ""
+      : "",
+    suggestionError: suggestions.suggestionError || "",
+  });
+
+  const loadChatSuggestions = async (userPrompt, assistantResponse, recentMessages) => {
+    const baseSuggestions = {
+      videos: [],
+      webResults: [],
+      followUpPrompts: [],
+      suggestionError: "",
+      suggestionsLoading: false,
+    };
+
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (user && supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+      }
+
+      const response = await fetch("/api/health-chat-suggestions", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          userPrompt,
+          assistantResponse,
+          profileContext: userProfile ? buildUserContext() : "",
+          recentMessages,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load suggestions");
+      }
+
+      if (data.safetyBlocked) {
+        return baseSuggestions;
+      }
+
+      const suggestions = compactSuggestions({
+        ...data,
+        suggestionError: data.resourceError || "",
+      });
+
+      if (suggestions.videos.length > 0) {
+        setYoutubeState({
+          query: suggestions.query || userPrompt,
+          videos: suggestions.videos,
+          loading: false,
+          error: "",
+        });
+      }
+
+      return {
+        ...baseSuggestions,
+        ...suggestions,
+      };
+    } catch (error) {
+      return {
+        ...baseSuggestions,
+        suggestionError:
+          error.message || "Related resources could not be loaded.",
+      };
+    }
+  };
+
   const sendMessage = async (messageText) => {
     const text = messageText || inputValue.trim();
     if (!text || isStreaming) return;
@@ -5352,6 +5701,7 @@ const HealthChatbot = () => {
 
     // Fetch relevant knowledge base context for personalization
     const kbContext = user ? await fetchRelevantContext(text) : [];
+    const assistantSources = buildAssistantSources(kbContext);
 
     try {
       abortControllerRef.current = new AbortController();
@@ -5466,6 +5816,7 @@ const HealthChatbot = () => {
                   updated[updated.length - 1] = {
                     role: "assistant",
                     content: accumulatedContent,
+                    sources: assistantSources,
                   };
                   return updated;
                 });
@@ -5489,6 +5840,7 @@ const HealthChatbot = () => {
                 updated[updated.length - 1] = {
                   role: "assistant",
                   content: accumulatedContent,
+                  sources: assistantSources,
                 };
                 return updated;
               });
@@ -5499,12 +5851,58 @@ const HealthChatbot = () => {
         }
       }
 
+      let assistantMessage = {
+        role: "assistant",
+        content: accumulatedContent,
+        sources: assistantSources,
+      };
+
+      if (accumulatedContent.trim()) {
+        assistantMessage = {
+          ...assistantMessage,
+          suggestions: {
+            videos: [],
+            webResults: [],
+            followUpPrompts: [],
+            suggestionsLoading: true,
+            suggestionError: "",
+          },
+        };
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = assistantMessage;
+          return updated;
+        });
+
+        const suggestions = await loadChatSuggestions(
+          text,
+          accumulatedContent,
+          [...messages, userMessage],
+        );
+
+        assistantMessage = {
+          ...assistantMessage,
+          suggestions,
+        };
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = assistantMessage;
+          return updated;
+        });
+      }
+
       // Clear retry count on success
       setRetryCount(0);
 
       // Save conversation to database if user is logged in
       if (user) {
-        const updatedMessages = [...messages, userMessage, { role: "assistant", content: accumulatedContent }];
+        const updatedMessages = [
+          ...messages,
+          userMessage,
+          assistantMessage,
+        ];
         const savedConversationId = await saveConversationToDb(activeConversationId, updatedMessages);
 
         // Check for special content types to embed separately
@@ -5581,17 +5979,28 @@ const HealthChatbot = () => {
       }
     } catch (error) {
       if (error.name === "AbortError") {
+        const stoppedAssistantMessage = {
+          role: "assistant",
+          content: accumulatedContent
+            ? `${accumulatedContent}\n\n_Response stopped._`
+            : "_Response stopped._",
+          isStopped: true,
+          sources: assistantSources,
+        };
+
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: accumulatedContent
-              ? `${accumulatedContent}\n\n_Response stopped._`
-              : "_Response stopped._",
-            isStopped: true,
-          };
+          updated[updated.length - 1] = stoppedAssistantMessage;
           return updated;
         });
+
+        if (user) {
+          await saveConversationToDb(activeConversationId, [
+            ...messages,
+            userMessage,
+            stoppedAssistantMessage,
+          ]);
+        }
       } else {
         console.error("Chat error:", error);
 
@@ -5787,7 +6196,8 @@ const HealthChatbot = () => {
           .join("; ")
       : "";
     fetchFocusVideos(focus);
-    setActiveWorkspaceTab("videos");
+    setActiveLibraryTab("videos");
+    setActiveWorkspaceTab("library");
     sendMessage(
       `Using my profile, tracker data, body composition, and selected 3D health avatar focus (${focus.systemLabel} system / ${focus.regionLabel} region), explain why this focus may matter for coaching, evidence-based lifestyle actions, warning signs, questions to ask a clinician, and one safe next step. Profile-linked avatar signals: ${profileSignals || "none selected"}. Body summary: ${bodySummary || "not available"}. Do not diagnose from this avatar selection or body composition estimates.`,
     );
@@ -5806,6 +6216,87 @@ const HealthChatbot = () => {
     sendMessage(prompts[planType] || prompts.meal);
   };
 
+  const getSidePanelMaxWidth = () => {
+    if (typeof window === "undefined") return 760;
+    return Math.min(760, Math.max(360, Math.round(window.innerWidth * 0.58)));
+  };
+
+  const clampSidePanelWidth = (width) =>
+    Math.min(Math.max(width, SIDE_PANEL_MIN_WIDTH), getSidePanelMaxWidth());
+
+  const handleSidePanelResizeStart = (event) => {
+    if (typeof window === "undefined" || window.innerWidth <= 768) return;
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = sidePanelWidth;
+    setIsSidePanelCollapsed(false);
+    setIsSidePanelResizing(true);
+
+    const handlePointerMove = (moveEvent) => {
+      const nextWidth = clampSidePanelWidth(startWidth + startX - moveEvent.clientX);
+      setSidePanelWidth(nextWidth);
+    };
+
+    const handlePointerUp = () => {
+      setIsSidePanelResizing(false);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  };
+
+  const minimizeSidePanel = () => {
+    setIsSidePanelCollapsed(true);
+  };
+
+  const restoreSidePanel = () => {
+    setIsSidePanelCollapsed(false);
+    setSidePanelWidth((width) =>
+      clampSidePanelWidth(width || SIDE_PANEL_DEFAULT_WIDTH),
+    );
+  };
+
+  const maximizeSidePanel = () => {
+    setIsSidePanelCollapsed(false);
+    setSidePanelWidth(getSidePanelMaxWidth());
+  };
+
+  const routeWorkspaceTab = (tabId) => {
+    if (["videos", "uploads", "documents"].includes(tabId)) {
+      setActiveLibraryTab(tabId);
+      setActiveWorkspaceTab("library");
+      return;
+    }
+    if (tabId === "body") {
+      setActiveWorkspaceTab("avatar");
+      return;
+    }
+    setActiveWorkspaceTab(tabId);
+  };
+
+  const patientContextItems = [
+    ...(Array.isArray(userProfile?.conditions)
+      ? userProfile.conditions.filter((item) => item && item !== "None").slice(0, 2)
+      : []),
+    avatarFocus?.regionLabel ? avatarFocus.regionLabel : "",
+    bodyCompositionReadings?.length ? `${bodyCompositionReadings.length} body readings` : "",
+  ].filter(Boolean);
+
+  const chatStatusLabel = isStreaming
+    ? "Generating"
+    : isSaving
+      ? "Saving"
+      : conversationSaveError
+        ? "Save failed"
+        : activeConversationId
+          ? "Saved"
+          : user
+            ? "Local ready"
+            : "Local only";
+
   const renderWorkspacePanel = () => {
     if (activeWorkspaceTab === "tracker") {
       return (
@@ -5816,7 +6307,7 @@ const HealthChatbot = () => {
       );
     }
 
-    if (activeWorkspaceTab === "body") {
+    if (activeWorkspaceTab === "avatar") {
       return (
         <BodyCompositionHistoryPanel
           readings={bodyCompositionReadings}
@@ -5837,81 +6328,115 @@ const HealthChatbot = () => {
       );
     }
 
-    if (activeWorkspaceTab === "videos") {
+    if (activeWorkspaceTab === "library") {
       return (
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Box sx={{ display: "grid", gap: 0.5 }}>
-            <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Related Health Videos
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-              Search: {youtubeState.query || "Select a body focus and ask the coach"}
-            </Typography>
+          <Box className={styles.panelSegmentedControls}>
+            {[
+              ["videos", "Videos"],
+              ["uploads", "Uploads"],
+              ["documents", "Books"],
+            ].map(([id, label]) => (
+              <Button
+                key={id}
+                size="small"
+                onClick={() => setActiveLibraryTab(id)}
+                className={
+                  activeLibraryTab === id
+                    ? styles.panelSegmentActive
+                    : styles.panelSegment
+                }
+              >
+                {label}
+              </Button>
+            ))}
           </Box>
-          {youtubeState.loading && (
-            <Typography variant="body2" sx={{ color: "#9ca3af" }}>
-              Searching YouTube...
-            </Typography>
-          )}
-          {youtubeState.error && (
-            <Alert severity="warning">{youtubeState.error}</Alert>
-          )}
-          {!youtubeState.loading && !youtubeState.error && youtubeState.videos.length === 0 && (
-            <Typography variant="body2" sx={{ color: "#9ca3af" }}>
-              No videos loaded yet.
-            </Typography>
-          )}
-          {youtubeState.videos.map((video) => (
-            <Box
-              key={video.id}
-              component="a"
-              href={video.url}
-              target="_blank"
-              rel="noreferrer"
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "96px 1fr",
-                gap: 1,
-                p: 1,
-                border: "1px solid #333",
-                color: "inherit",
-                textDecoration: "none",
-                "&:hover": { borderColor: "#00e676" },
-              }}
-            >
-              <Box
-                component="img"
-                src={video.thumbnail}
-                alt=""
-                sx={{ width: 96, height: 54, objectFit: "cover", bgcolor: "#111" }}
-              />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                  {video.title}
+          {activeLibraryTab === "videos" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <Box sx={{ display: "grid", gap: 0.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  Related Health Videos
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
-                  {video.channel} {video.duration ? `| ${video.duration}` : ""}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
-                  {[video.published, video.viewCount].filter(Boolean).join(" | ")}
+                <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+                  Search: {youtubeState.query || "Select a body focus and ask the coach"}
                 </Typography>
               </Box>
+              {youtubeState.loading && (
+                <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+                  Searching YouTube...
+                </Typography>
+              )}
+              {youtubeState.error && (
+                <Alert severity="warning">{youtubeState.error}</Alert>
+              )}
+              {!youtubeState.loading && !youtubeState.error && youtubeState.videos.length === 0 && (
+                <Typography variant="body2" sx={{ color: "#9ca3af" }}>
+                  No videos loaded yet.
+                </Typography>
+              )}
+              {youtubeState.videos.map((video) => (
+                <Box
+                  key={video.id}
+                  component="a"
+                  href={video.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.videoResult}
+                >
+                  <Box
+                    component="img"
+                    src={video.thumbnail}
+                    alt=""
+                    sx={{ width: 96, height: 54, objectFit: "cover", bgcolor: "#111" }}
+                  />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                      {video.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
+                      {video.channel} {video.duration ? `| ${video.duration}` : ""}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#9ca3af", display: "block" }}>
+                      {[video.published, video.viewCount].filter(Boolean).join(" | ")}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
             </Box>
-          ))}
+          )}
+          {activeLibraryTab === "uploads" && <UserUploadsPanel />}
+          {activeLibraryTab === "documents" && <DocumentsPanel />}
         </Box>
       );
     }
 
-    if (activeWorkspaceTab === "uploads") {
-      return <UserUploadsPanel />;
-    }
-
-    if (activeWorkspaceTab === "documents") {
-      return <DocumentsPanel />;
-    }
-
     return (
       <Box sx={{ display: "grid", gap: 2 }}>
+        <Box sx={{ display: "grid", gap: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 900 }}>
+            Control Center
+          </Typography>
+          <Box className={styles.cockpitActionGrid}>
+            <Button onClick={() => setShowSupplementChecker(true)} startIcon={<MedicationIcon />}>
+              Supplements
+            </Button>
+            <Button onClick={() => setShowAudioLibrary(true)} startIcon={<SpaIcon />}>
+              Audio
+            </Button>
+            <Button onClick={() => setShowProgressTracker(true)} startIcon={<CalendarMonthIcon />}>
+              Progress
+            </Button>
+            <Button onClick={() => setShowBodyCompositionHistory(true)} startIcon={<BarChartIcon />}>
+              Body metrics
+            </Button>
+            <Button onClick={() => setShowAccessibilityPanel(true)} startIcon={<SettingsAccessibilityIcon />}>
+              Accessibility
+            </Button>
+            <Button onClick={() => setShowInsights(true)} startIcon={<MonitorHeartIcon />}>
+              Insights
+            </Button>
+          </Box>
+        </Box>
         {showSupplementChecker && (
           <SupplementChecker
             userMedications={userProfile?.medications || ""}
@@ -6103,7 +6628,8 @@ const HealthChatbot = () => {
                 <Button
                   startIcon={<UploadIcon />}
                   onClick={() => {
-                    setActiveWorkspaceTab("uploads");
+                    setActiveLibraryTab("uploads");
+                    setActiveWorkspaceTab("library");
                     setShowChatSettings(false);
                   }}
                 >
@@ -6215,17 +6741,22 @@ const HealthChatbot = () => {
         onImport={handleImport}
       />
 
-      <Box ref={containerRef} className={styles.chatContainer}>
+      <Box
+        ref={containerRef}
+        className={`${styles.chatContainer} ${
+          isSidePanelResizing ? styles.chatContainerResizing : ""
+        }`}
+        style={{
+          "--health-side-panel-width": `${
+            isSidePanelCollapsed
+              ? SIDE_PANEL_COLLAPSED_WIDTH
+              : sidePanelWidth
+          }px`,
+        }}
+      >
         {/* Header Actions */}
         <Box className={styles.disclaimerIconContainer}>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <Box className={styles.commandCluster}>
             <IconButton
               onClick={handleStartNewConversation}
               className={styles.actionButton}
@@ -6292,6 +6823,21 @@ const HealthChatbot = () => {
               <WarningAmberIcon />
             </IconButton>
           </Box>
+          <Box className={styles.statusCluster}>
+            <Chip size="small" label={chatStatusLabel} className={styles.statusChip} />
+            {usageStats?.tier && (
+              <Chip
+                size="small"
+                label={usageStats.tier.toUpperCase()}
+                className={styles.tierChip}
+              />
+            )}
+            <Chip
+              size="small"
+              label={user ? "Signed in" : "Local mode"}
+              className={styles.statusChip}
+            />
+          </Box>
 
           {showDisclaimer && (
             <Box
@@ -6312,14 +6858,27 @@ const HealthChatbot = () => {
 
         {/* Chat Header */}
         <Box className={styles.chatHeader}>
-          <Typography variant="h1">Evidence-Based Health Coach</Typography>
+          <Box>
+            <Typography variant="caption" className={styles.headerEyebrow}>
+              HEALTH COCKPIT
+            </Typography>
+            <Typography variant="h1">Evidence-Based Health Coach</Typography>
+          </Box>
+          <Box className={styles.patientContext}>
+            <Typography variant="caption">Patient context</Typography>
+            <Typography variant="body2">
+              {patientContextItems.length
+                ? patientContextItems.join(" | ")
+                : "Profile not set | Books ready after import"}
+            </Typography>
+          </Box>
         </Box>
 
         <Box className={styles.workspaceTabs}>
           {HEALTH_WORKSPACE_TABS.map((tab) => (
             <Button
               key={tab.id}
-              onClick={() => setActiveWorkspaceTab(tab.id)}
+              onClick={() => routeWorkspaceTab(tab.id)}
               className={
                 activeWorkspaceTab === tab.id
                   ? styles.workspaceTabActive
@@ -6439,9 +6998,43 @@ const HealthChatbot = () => {
                         : styles.botContent
                     }`}
                   >
+                    <Box className={styles.messageMeta}>
+                      <span>{msg.role === "user" ? "You" : "Health Coach"}</span>
+                      {msg.isStopped && <span>Stopped</span>}
+                      {msg.isError && <span>Needs attention</span>}
+                    </Box>
                     {msg.content ? (
                       msg.role === "assistant" ? (
-                        <FormattedMessage content={msg.content} />
+                        <>
+                          <FormattedMessage content={msg.content} />
+                          {Array.isArray(msg.sources) && msg.sources.length > 0 && (
+                            <Box className={styles.messageSources}>
+                              <Typography variant="caption">
+                                {hasBookSource(msg.sources)
+                                  ? "Book context used"
+                                  : "Knowledge context used"}
+                              </Typography>
+                              <Box className={styles.sourceChipList}>
+                                {msg.sources.map((source, sourceIndex) => (
+                                  <Chip
+                                    key={`${source.title}-${sourceIndex}`}
+                                    size="small"
+                                    label={`${source.type === "book" ? "Book" : "Doc"}${source.category ? `/${source.category}` : ""}: ${source.title}${source.page ? ` p.${source.page}` : ""}`}
+                                    className={
+                                      source.type === "book"
+                                        ? styles.bookSourceChip
+                                        : styles.documentSourceChip
+                                    }
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+                          <ChatResourceSuggestions
+                            suggestions={msg.suggestions}
+                            onPromptClick={handleSuggestionClick}
+                          />
+                        </>
                       ) : (
                         msg.content
                       )
@@ -6465,17 +7058,77 @@ const HealthChatbot = () => {
           <div ref={messagesEndRef} />
         </Box>
 
-        <Box className={styles.workspaceSidePanel}>
-          <BodyDashboardPanel
-            userProfile={userProfile}
-            bodyCompositionReadings={bodyCompositionReadings}
-            trackerData={trackerData}
-            onZoneSelect={handleBodyZoneSelect}
-            onAskCoach={handleAskAvatarCoach}
-            onFocusChange={setAvatarFocus}
+        <Box
+          className={`${styles.workspaceSidePanel} ${
+            isSidePanelCollapsed ? styles.workspaceSidePanelCollapsed : ""
+          }`}
+        >
+          <Box
+            className={styles.sidePanelResizeHandle}
+            onPointerDown={handleSidePanelResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize health side panel"
+            title="Drag to resize"
           />
-          <Box className={styles.workspaceToolPanel}>
-            {renderWorkspacePanel()}
+          <Box className={styles.sidePanelHeader}>
+            {!isSidePanelCollapsed && (
+              <Typography variant="caption" className={styles.sidePanelTitle}>
+                Health Panel
+              </Typography>
+            )}
+            <Box className={styles.sidePanelControls}>
+              {isSidePanelCollapsed ? (
+                <IconButton
+                  size="small"
+                  onClick={restoreSidePanel}
+                  title="Expand side panel"
+                  aria-label="Expand side panel"
+                >
+                  <ChevronLeftIcon fontSize="small" />
+                </IconButton>
+              ) : (
+                <>
+                  <IconButton
+                    size="small"
+                    onClick={minimizeSidePanel}
+                    title="Minimize side panel"
+                    aria-label="Minimize side panel"
+                  >
+                    <ChevronRightIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => setSidePanelWidth(SIDE_PANEL_DEFAULT_WIDTH)}
+                    title="Reset side panel width"
+                    aria-label="Reset side panel width"
+                  >
+                    <CloseFullscreenIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={maximizeSidePanel}
+                    title="Maximize side panel"
+                    aria-label="Maximize side panel"
+                  >
+                    <OpenInFullIcon fontSize="small" />
+                  </IconButton>
+                </>
+              )}
+            </Box>
+          </Box>
+          <Box className={styles.sidePanelContent}>
+            <BodyDashboardPanel
+              userProfile={userProfile}
+              bodyCompositionReadings={bodyCompositionReadings}
+              trackerData={trackerData}
+              onZoneSelect={handleBodyZoneSelect}
+              onAskCoach={handleAskAvatarCoach}
+              onFocusChange={setAvatarFocus}
+            />
+            <Box className={styles.workspaceToolPanel}>
+              {renderWorkspacePanel()}
+            </Box>
           </Box>
         </Box>
 
@@ -6614,6 +7267,15 @@ const HealthChatbot = () => {
           onClose={() => setShowHistoryPanel(false)}
           activeConversationId={activeConversationId}
           user={user}
+          localMessages={messages}
+          onSyncLocal={async () => {
+            const conversationId = await syncLocalConversationToDb(messages);
+            if (conversationId) {
+              setShowHistoryPanel(false);
+              setTimeout(() => setShowHistoryPanel(true), 0);
+            }
+            return conversationId;
+          }}
           onSelect={async (id) => {
             try {
               if (!supabase) return;

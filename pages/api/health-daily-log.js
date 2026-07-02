@@ -25,6 +25,31 @@ function dailyLogPayload(body = {}) {
   };
 }
 
+function isMissingTrackerSchema(error) {
+  return (
+    error?.code === "PGRST205" ||
+    error?.code === "42P01" ||
+    error?.message?.includes("health_daily_logs") ||
+    error?.message?.includes("health_food_entries") ||
+    error?.message?.includes("health_activity_entries") ||
+    error?.message?.includes("health_symptom_entries") ||
+    error?.message?.includes("health_goals") ||
+    error?.message?.includes("health_goal_checkins")
+  );
+}
+
+function emptyTrackerResponse(logDate) {
+  return {
+    log: null,
+    food: [],
+    activities: [],
+    symptoms: [],
+    goals: [],
+    schemaPending: true,
+    message: `Health tracker tables are not available yet for ${logDate}. Run supabase/health-bot-migration.sql if this persists.`,
+  };
+}
+
 export default async function handler(req, res) {
   if (requireHealthDatabase(res)) return;
 
@@ -40,6 +65,10 @@ export default async function handler(req, res) {
         .eq("user_id", user.id)
         .eq("log_date", logDate)
         .maybeSingle();
+
+      if (isMissingTrackerSchema(error)) {
+        return res.status(200).json(emptyTrackerResponse(logDate));
+      }
 
       if (error) throw error;
 
@@ -104,6 +133,20 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
+    if (isMissingTrackerSchema(error)) {
+      if (req.method === "GET") {
+        return res.status(200).json(emptyTrackerResponse(req.query.date || todayIso()));
+      }
+
+      const payload = dailyLogPayload(req.body);
+      return res.status(200).json({
+        user_id: user?.id,
+        ...payload,
+        schemaPending: true,
+        notPersisted: true,
+        message: "Health tracker tables are not available yet. Run supabase/health-bot-migration.sql if this persists.",
+      });
+    }
     console.error("Daily log API error:", error);
     return res.status(500).json({ error: error.message || "Internal server error" });
   }
